@@ -8,16 +8,22 @@ import bpy
 import mathutils
 from math import radians, tan
 def make_single_user():
+    """ When you copy an object they will have the same material, you've already seen it happen for materials and 
+    if you change the material of 1 object it changes all materials unless you unlink them by clicking on the number
+    The same can happen if you copy a mesh. This will prevent you from being able to apply modifiers
+    """#object/relations/make single user/object n data
     bpy.ops.object.make_single_user(object=True, obdata=True, material=False, animation=False)
     
 def deselect_all(scene):
-    allobjects = scene.objects
-    for ob in allobjects:
-        make_single_user()
-        bpy.data.objects[ob.name].select_set(False)
+    #allobjects = scene.objects
+    bpy.context.view_layer.objects.active = None    
+    #for ob in allobjects:
+    #    make_single_user()
+    #    bpy.data.objects[ob.name].select_set(False)
 
 def select_obj(ob):
-    bpy.data.objects[ob.name].select_set(True)
+    bpy.context.view_layer.objects.active = ob
+    
 def select_only_obj(object = None,scene = None):
     if object and scene:
         deselect_all(scene)
@@ -63,8 +69,8 @@ class ObjectCursorArray(bpy.types.Operator):
         cursor = scene.cursor.location
         object_beam = context.active_object
         
-        beam_ob = bpy.data.objects.new('Beam',object_beam.data)
-        #beam_ob = object_beam.copy()
+        #copy object mesh (unlinked)
+        beam_ob = bpy.data.objects.new('Beam',object_beam.data)        
         
         print(f"type is {beam_ob.type}") 
         #resize the beam if it is too large:
@@ -75,39 +81,38 @@ class ObjectCursorArray(bpy.types.Operator):
             beam_ob.scale = (f,f,f)            
         if x > y:
             beam_ob.rotation_euler = (0,0,radians(90))
-        make_single_user()
-
-        # multi user -> single user: now you can apply scale etc.
-        bpy.ops.object.make_single_user(object=True, obdata=True, material=False, animation=False) #object/relations/make single user/object n data
+        make_single_user() # to make sure you can apply modifiers etc
         bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-        #decide how much the beam need to be slanted
-        angle = radians(90) - tan(self.boxwidth/self.boxheight) #upper right corner to rotate to leftdown corner
+        deselect_all(scene)
+        # Determine how much the diagonal beam need to be slanted
+        angle = radians(90) - tan(self.boxwidth/self.boxheight) 
         
-        # Decide the center of the scene
+        # Determine the center of the scene
         EmptyCenter = create_empty(name = 'EmptyCenter',size = max(self.boxwidth,self.boxheight)*1.5,location =  cursor)
 
-
-        
         # point vectors to where the beams should be placed
         Vector = mathutils.Vector
-        vec1 = Vector((self.boxwidth/2, 0, self.boxheight/2))
+        
+        vec_centertop = Vector((self.boxwidth/2, 0, self.boxheight/2))
         vec_corner = Vector((self.boxwidth/2, self.boxwidth/2, self.boxheight/2))
         vec3 = Vector((self.boxwidth/2, self.boxwidth/2, 0))
-        #for i,vec in enumerate([vec1,vec2]):
+        # Create extra Empties
         EmptyCorner   = create_empty(name = 'EmptyCorner',size = max(self.boxwidth,self.boxheight)/4,location =  vec_corner)        
         EmptyFront    = create_empty(name = 'EmptyFront',size = max(self.boxwidth,self.boxheight)/4,location =  cursor + Vector((self.boxwidth/2,0,0)))                
         EmptyDiagonal = create_empty(name = 'EmptyDiagonal',size = max(self.boxwidth,self.boxheight)/4,location =  cursor + Vector((self.boxwidth/2,0,0)))                        
-
+        # to avoid having to rotate the beam at the eind points: it's easier to use an extra empty and scale/rotate the object around the center
         p = self.diagonalpercent
-        EmptyDiagonal.location = (EmptyCorner.location + EmptyFront.location*p + EmptyCorner.location*(1-p))/2
+        EmptyDiagonal.location = (EmptyFront.location*p + EmptyCorner.location*(2-p))/2
         
-        obj_topbar = beam_ob.copy()        
+
+        obj_topbar = bpy.data.objects.new('Beam',beam_ob.data)        
         scene.collection.objects.link(obj_topbar)        
         make_single_user()
-        obj_topbar.location = cursor + vec1
+        obj_topbar.location = cursor + vec_centertop
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)   
         obj_topbar.scale = (0, (EmptyCorner.location.y-cursor.y)/obj_topbar.dimensions.y,0)      
-        """
+        
+        
         obj_sidebar = obj_topbar.copy()        
         scene.collection.objects.link(obj_sidebar)        
         make_single_user()        
@@ -120,15 +125,14 @@ class ObjectCursorArray(bpy.types.Operator):
         zh = (self.boxheight + obj_topbar.dimensions.z)/max(x,y,z)
         print(f"zh = {zh}")
         obj_sidebar.scale = (1,1,zh)
-
         make_single_user()
-        select_only_obj(object = obj_topbar,scene = scene)
+        select_obj(obj_topbar)
         print(f"type is {obj_sidebar.type}") 
         bpy.ops.object.modifier_add(type='MIRROR')
         bpy.data.objects[obj_topbar.name].modifiers["Mirror"].use_axis = (False, False, True)
         bpy.data.objects[obj_topbar.name].modifiers["Mirror"].mirror_object = EmptyCenter
         
-        select_only_obj(object = obj_sidebar,scene = scene)
+        select_obj(obj_sidebar)
         make_single_user()
         bpy.ops.object.modifier_add(type='MIRROR')
         bpy.data.objects[obj_sidebar.name].modifiers["Mirror"].use_axis = (False, True, False)
@@ -150,7 +154,7 @@ class ObjectCursorArray(bpy.types.Operator):
         #print(obj_new.name)
         #bpy.data.objects[obj.name].modifiers['Mirror'].use_axis = (False,True,False)
         #bpy.data.objects[obj_new.name].select_set(False)
-        """       
+               
         return {'FINISHED'}
 
 
