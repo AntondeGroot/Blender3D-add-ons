@@ -6,7 +6,7 @@ bl_info = {
 
 import bpy
 import mathutils
-from math import radians, atan, sqrt
+from math import radians, atan, sqrt, pi, sin, cos
 
 def make_single_user():
     """ When you copy an object they will have the same material, you've already seen it happen for materials and 
@@ -246,6 +246,31 @@ class ObjectCursorArray(bpy.types.Operator):
         EmptyTop   = create_empty(name = 'EmptyTop',size = max(self.boxwidth,self.boxheight)/4)
         EmptyTop.location = (self.boxwidth/2,0,self.boxheight/2+f)        
 #        scene.collection.objects.link(EmptyTop) 
+        
+        #determine polygon's next center of the edge.
+        """If you place an empty at the next edge center of a polygon , then an array with N numbers will finish the polygon"""
+        n = self.N_sides
+        Ngon_angle = (n - 2)*pi/n
+        length = self.boxwidth/2
+        x1,y1,z1 = EmptyCorner.location
+        x2,y2,z2 = instanceplane.location
+        xx = length*sin(pi-Ngon_angle)
+        yy = length*cos(pi-Ngon_angle)
+        emptypos = (x1-xx,y1+yy,z2)
+        EmptyPolygon   = create_empty(name = 'EmptyPolygon',size = 1,location =  emptypos)        
+        EmptyPolygon.rotation_euler = (0,0,3*pi-Ngon_angle)
+
+        select_obj(instanceplane)
+        bpy.ops.view3d.snap_cursor_to_active()
+        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+        bpy.ops.object.modifier_add(type='ARRAY')
+        obname = instanceplane.name
+        bpy.data.objects[obname].modifiers["Array"].use_relative_offset = False
+        bpy.data.objects[obname].modifiers["Array"].use_object_offset = True
+        bpy.data.objects[obname].modifiers["Array"].offset_object = EmptyPolygon
+        bpy.data.objects[obname].modifiers["Array"].count = self.N_sides
+        
+        
         return {'FINISHED'}
 
 
