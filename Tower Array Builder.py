@@ -6,8 +6,8 @@ bl_info = {
 
 import bpy
 import mathutils
-from math import radians, atan
-import math
+from math import radians, atan, sqrt
+
 def make_single_user():
     """ When you copy an object they will have the same material, you've already seen it happen for materials and 
     if you change the material of 1 object it changes all materials unless you unlink them by clicking on the number
@@ -140,7 +140,7 @@ class ObjectCursorArray(bpy.types.Operator):
         deselect_all(scene)
         # Determine how much the diagonal beam need to be slanted
         angle = atan(self.boxheight/self.boxwidth) 
-        diagonallength = math.sqrt(self.boxheight**2+self.boxwidth**2)/2*self.diagonalpercent
+        diagonallength = sqrt(self.boxheight**2+self.boxwidth**2)/2*self.diagonalpercent
         # Determine the center of the scene
         EmptyCenter = create_empty(name = 'EmptyCenter',size = max(self.boxwidth,self.boxheight)*1.5,location =  cursor)
 
@@ -217,14 +217,26 @@ class ObjectCursorArray(bpy.types.Operator):
         #obj_diagonal1.rotation_euler = (angle,0,0)
         
        
-            
-        
+        #add instancing plane
+
+        instanceplane = bpy.ops.mesh.primitive_plane_add()
+        # newly created cube will be automatically selected
+        instanceplane = bpy.context.selected_objects[0]  
+        instanceplane.scale = (0.25,1,1)
+        scene.collection.objects.link(instanceplane) 
+        instanceplane.location = (self.boxwidth/2,0,-self.boxheight/2-f)   
+        bpy.data.objects[instanceplane.name].hide_render = True
        # deselect_all(scene)   
         #bpy.ops.object.modifier_add(type='MIRROR')
         #print(obj_new.name)
         #bpy.data.objects[obj.name].modifiers['Mirror'].use_axis = (False,True,False)
         #bpy.data.objects[obj_new.name].select_set(False)
+        bpy.data.objects[instanceplane.name].instance_type = 'FACES'
         
+        # Create extra Empties
+        EmptyTop   = create_empty(name = 'EmptyTop',size = max(self.boxwidth,self.boxheight)/4)
+        EmptyTop.location = (self.boxwidth/2,0,self.boxheight/2+f)        
+#        scene.collection.objects.link(EmptyTop) 
         return {'FINISHED'}
 
 
