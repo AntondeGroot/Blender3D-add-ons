@@ -55,13 +55,15 @@ def create_empty(name = 'empty object',size = 1,type = 'ARROWS',location =  math
     return Empty
 
 def movecollection(object,new_col):
-    select_obj(object)
-    obj = bpy.context.object
-    old_col = obj.users_collection[0]
-    print(f"object was in collection {obj.users_collection}")
-    bpy.data.collections[new_col.name].objects.link(object)
-    bpy.data.collections[old_col.name].objects.unlink(object)  
-    
+    try:
+        select_obj(object)
+        obj = bpy.context.object
+        old_col = obj.users_collection[0]
+        print(f"object was in collection {obj.users_collection}")
+        bpy.data.collections[new_col.name].objects.link(object)
+        bpy.data.collections[old_col.name].objects.unlink(object)  
+    except:
+        pass        
            
 class ObjectCursorArray(bpy.types.Operator):
     """Create a Transmission Tower"""
@@ -117,6 +119,7 @@ class ObjectCursorArray(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         cursor = scene.cursor.location
+        cursor_org = cursor
         object_beam = context.active_object
         
         TowerCol = bpy.data.collections.new('TransmissionTower')
@@ -173,13 +176,15 @@ class ObjectCursorArray(bpy.types.Operator):
         diagonallength = sqrt(self.boxheight**2+self.boxwidth**2)/2*self.diagonalpercent
         # Determine the center of the scene
         EmptyCenter = create_empty(name = 'EmptyCenter',size = max(self.boxwidth,self.boxheight)*1.5,location =  cursor,colname = TowerCol)
-
+        xm,ym,zm = cursor #middle of box
         # point vectors to where the beams should be placed
         Vector = mathutils.Vector
         
-        vec_centertop = Vector((self.boxwidth/2, 0, self.boxheight/2))
-        vec_corner = Vector((self.boxwidth/2, self.boxwidth/2, self.boxheight/2))
-        vec_side = Vector((self.boxwidth/2, self.boxwidth/2, 0))
+        
+        
+        vec_centertop = Vector((self.boxwidth/2, 0, self.boxheight/2)) + cursor
+        vec_corner = Vector((self.boxwidth/2, self.boxwidth/2, self.boxheight/2)) + cursor
+        vec_side = Vector((self.boxwidth/2, self.boxwidth/2, 0)) + cursor
         # Create extra Empties
         EmptyCorner   = create_empty(name = 'EmptyCorner',size = max(self.boxwidth,self.boxheight)/4,location =  vec_corner,colname = TowerCol)        
         EmptyFront    = create_empty(name = 'EmptyFront',size = max(self.boxwidth,self.boxheight)/4,location =  cursor + Vector((self.boxwidth/2,0,0)),colname = TowerCol)                
@@ -193,7 +198,7 @@ class ObjectCursorArray(bpy.types.Operator):
         #scene.collection.objects.link(obj_topbar)     
         bpy.data.collections[TowerCol.name].objects.link(obj_topbar)   
         all_single_users(scene)
-        obj_topbar.location = cursor + vec_centertop
+        obj_topbar.location = vec_centertop
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)   
         select_obj(obj_topbar)
         bpy.ops.object.modifier_add(type='MIRROR')
@@ -257,7 +262,7 @@ class ObjectCursorArray(bpy.types.Operator):
         instanceplane = bpy.context.selected_objects[0]  
         instanceplane.scale = (0.25,1,1)
         #scene.collection.objects.link(instanceplane) 
-        instanceplane.location = (self.boxwidth/2,0,-self.boxheight/2-f)  
+        instanceplane.location = Vector((self.boxwidth/2,0,-self.boxheight/2-f)) + cursor 
         movecollection(instanceplane, TowerCol)
         #bpy.data.collections[TowerCol.name].objects.link(instanceplane)   
         bpy.data.objects[instanceplane.name].hide_render = True
@@ -296,7 +301,8 @@ class ObjectCursorArray(bpy.types.Operator):
         bpy.data.objects[obname].modifiers["Array"].offset_object = EmptyPolygon
         bpy.data.objects[obname].modifiers["Array"].count = self.N_sides
         
-
+        select_obj(EmptyCenter)
+        bpy.ops.view3d.snap_cursor_to_active()
         
         return {'FINISHED'}
 
