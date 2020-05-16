@@ -47,7 +47,7 @@ def create_empty(name = 'empty object',size = 1,type = 'ARROWS',location =  math
     Empty = None
     if colname:
         Empty = bpy.data.objects.new( name, None ) 
-        bpy.data.collections[collectionname].objects.link(Empty)   
+        bpy.data.collections[colname.name].objects.link(Empty)   
         #bpy.context.scene.collection.objects.link( Empty )
         Empty.empty_display_size = size
         Empty.empty_display_type = type  
@@ -107,8 +107,7 @@ class ObjectCursorArray(bpy.types.Operator):
         bpy.context.scene.collection.children.unlink(collection)
         
     
-    TowerCol = bpy.data.collections.new('TransmissionTower')
-    bpy.context.scene.collection.children.link(TowerCol)
+    
     
     
    
@@ -117,6 +116,11 @@ class ObjectCursorArray(bpy.types.Operator):
         scene = context.scene
         cursor = scene.cursor.location
         object_beam = context.active_object
+        
+        TowerCol = bpy.data.collections.new('TransmissionTower')
+        bpy.context.scene.collection.children.link(TowerCol)
+        
+        
         all_single_users(scene)
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True) 
         
