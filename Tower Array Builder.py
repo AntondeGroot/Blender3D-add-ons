@@ -54,6 +54,14 @@ def create_empty(name = 'empty object',size = 1,type = 'ARROWS',location =  math
         Empty.location = location
     return Empty
 
+def movecollection(object,new_col):
+    select_obj(object)
+    obj = bpy.context.object
+    old_col = obj.users_collection[0]
+    print(f"object was in collection {obj.users_collection}")
+    bpy.data.collections[new_col.name].objects.link(object)
+    bpy.data.collections[old_col.name].objects.unlink(object)  
+    
            
 class ObjectCursorArray(bpy.types.Operator):
     """Create a Transmission Tower"""
@@ -105,12 +113,6 @@ class ObjectCursorArray(bpy.types.Operator):
     
     for collection in collection2delete:
         bpy.context.scene.collection.children.unlink(collection)
-        
-    
-    
-    
-    
-   
 
     def execute(self, context):
         scene = context.scene
@@ -118,6 +120,7 @@ class ObjectCursorArray(bpy.types.Operator):
         object_beam = context.active_object
         
         TowerCol = bpy.data.collections.new('TransmissionTower')
+        print(f"towcol {TowerCol}")
         bpy.context.scene.collection.children.link(TowerCol)
         
         
@@ -128,6 +131,7 @@ class ObjectCursorArray(bpy.types.Operator):
         # newly created cube will be automatically selected
         boxcube = bpy.context.selected_objects[0]  
         boxcube.location = cursor
+        movecollection(boxcube,TowerCol)
         select_obj(boxcube)
         bpy.ops.object.modifier_add(type='WIREFRAME') 
         bpy.data.objects[boxcube.name].modifiers["Wireframe"].thickness = 0.06
@@ -253,7 +257,9 @@ class ObjectCursorArray(bpy.types.Operator):
         instanceplane = bpy.context.selected_objects[0]  
         instanceplane.scale = (0.25,1,1)
         #scene.collection.objects.link(instanceplane) 
-        instanceplane.location = (self.boxwidth/2,0,-self.boxheight/2-f)   
+        instanceplane.location = (self.boxwidth/2,0,-self.boxheight/2-f)  
+        movecollection(instanceplane, TowerCol)
+        #bpy.data.collections[TowerCol.name].objects.link(instanceplane)   
         bpy.data.objects[instanceplane.name].hide_render = True
        # deselect_all(scene)   
         #bpy.ops.object.modifier_add(type='MIRROR')
@@ -290,6 +296,7 @@ class ObjectCursorArray(bpy.types.Operator):
         bpy.data.objects[obname].modifiers["Array"].offset_object = EmptyPolygon
         bpy.data.objects[obname].modifiers["Array"].count = self.N_sides
         
+
         
         return {'FINISHED'}
 
