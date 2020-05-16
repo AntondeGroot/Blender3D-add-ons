@@ -43,12 +43,15 @@ def select_only_obj(object = None,scene = None):
     if object and scene:
         deselect_all(scene)
         bpy.data.objects[object.name].select_set(True)
-def create_empty(name = 'empty object',size = 1,type = 'ARROWS',location =  mathutils.Vector((0,0,0))):
-    Empty = bpy.data.objects.new( name, None ) 
-    bpy.context.scene.collection.objects.link( Empty )
-    Empty.empty_display_size = size
-    Empty.empty_display_type = type  
-    Empty.location = location
+def create_empty(name = 'empty object',size = 1,type = 'ARROWS',location =  mathutils.Vector((0,0,0)),colname = ''):
+    Empty = None
+    if colname:
+        Empty = bpy.data.objects.new( name, None ) 
+        bpy.data.collections[collectionname].objects.link(Empty)   
+        #bpy.context.scene.collection.objects.link( Empty )
+        Empty.empty_display_size = size
+        Empty.empty_display_type = type  
+        Empty.location = location
     return Empty
 
            
@@ -57,7 +60,7 @@ class ObjectCursorArray(bpy.types.Operator):
     bl_idname = "object.tower_array"
     bl_label = "Tower Array"
     bl_options = {'REGISTER', 'UNDO'}
-    print(f"testing\n"*10)
+    print("new script is run")
 
       
     boxheight: bpy.props.FloatProperty(name="Height", 
@@ -93,9 +96,19 @@ class ObjectCursorArray(bpy.types.Operator):
         description = 'Z',
         min = 3,
         soft_max = 32)  
-    #make a collection
-    #TowerCollection = bpy.data.collections.new('TransmissionTower')
-    #bpy.context.scene.collection.children.link(TowerCollection)
+    # delete all empty collections first
+    collection2delete = []
+    for collection in bpy.context.scene.collection.children:
+        nr_objects = len(list(collection.all_objects))
+        if nr_objects == 0:
+            collection2delete.append(collection)
+    
+    for collection in collection2delete:
+        bpy.context.scene.collection.children.unlink(collection)
+        
+    
+    TowerCol = bpy.data.collections.new('TransmissionTower')
+    bpy.context.scene.collection.children.link(TowerCol)
     
     
    
@@ -151,7 +164,7 @@ class ObjectCursorArray(bpy.types.Operator):
         angle = atan(self.boxheight/self.boxwidth) 
         diagonallength = sqrt(self.boxheight**2+self.boxwidth**2)/2*self.diagonalpercent
         # Determine the center of the scene
-        EmptyCenter = create_empty(name = 'EmptyCenter',size = max(self.boxwidth,self.boxheight)*1.5,location =  cursor)
+        EmptyCenter = create_empty(name = 'EmptyCenter',size = max(self.boxwidth,self.boxheight)*1.5,location =  cursor,colname = TowerCol)
 
         # point vectors to where the beams should be placed
         Vector = mathutils.Vector
@@ -160,16 +173,17 @@ class ObjectCursorArray(bpy.types.Operator):
         vec_corner = Vector((self.boxwidth/2, self.boxwidth/2, self.boxheight/2))
         vec_side = Vector((self.boxwidth/2, self.boxwidth/2, 0))
         # Create extra Empties
-        EmptyCorner   = create_empty(name = 'EmptyCorner',size = max(self.boxwidth,self.boxheight)/4,location =  vec_corner)        
-        EmptyFront    = create_empty(name = 'EmptyFront',size = max(self.boxwidth,self.boxheight)/4,location =  cursor + Vector((self.boxwidth/2,0,0)))                
-        EmptyDiagonal = create_empty(name = 'EmptyDiagonal',size = max(self.boxwidth,self.boxheight)/4,location =  cursor + Vector((self.boxwidth/2,0,0)))                        
+        EmptyCorner   = create_empty(name = 'EmptyCorner',size = max(self.boxwidth,self.boxheight)/4,location =  vec_corner,colname = TowerCol)        
+        EmptyFront    = create_empty(name = 'EmptyFront',size = max(self.boxwidth,self.boxheight)/4,location =  cursor + Vector((self.boxwidth/2,0,0)),colname = TowerCol)                
+        EmptyDiagonal = create_empty(name = 'EmptyDiagonal',size = max(self.boxwidth,self.boxheight)/4,location =  cursor + Vector((self.boxwidth/2,0,0)),colname = TowerCol)                        
         # to avoid having to rotate the beam at the eind points: it's easier to use an extra empty and scale/rotate the object around the center
         p = self.diagonalpercent
         EmptyDiagonal.location = (EmptyFront.location*p + EmptyCorner.location*(2-p))/2
         
 
         #obj_topbar = bpy.data.objects.new('Topbar',beam_ob.data)        
-        scene.collection.objects.link(obj_topbar)        
+        #scene.collection.objects.link(obj_topbar)     
+        bpy.data.collections[TowerCol.name].objects.link(obj_topbar)   
         all_single_users(scene)
         obj_topbar.location = cursor + vec_centertop
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)   
@@ -186,7 +200,8 @@ class ObjectCursorArray(bpy.types.Operator):
         obj_sidebar = unlinkedcopy(obj_topbar)
         obj_sidebar.name = 'Sidebar' 
         all_single_users(scene)
-        scene.collection.objects.link(obj_sidebar)        
+        #scene.collection.objects.link(obj_sidebar) 
+        bpy.data.collections[TowerCol.name].objects.link(obj_sidebar)          
         all_single_users(scene)  
         select_obj(obj_sidebar)    
         obj_sidebar.rotation_euler = (radians(90),0,0)
@@ -212,7 +227,8 @@ class ObjectCursorArray(bpy.types.Operator):
         obj_diagonalbar.rotation_euler = (angle,0,0)
         obj_diagonalbar.name = 'Diagonalbar' 
         all_single_users(scene)
-        scene.collection.objects.link(obj_diagonalbar)
+        #scene.collection.objects.link(obj_diagonalbar)
+        bpy.data.collections[TowerCol.name].objects.link(obj_diagonalbar)   
         obj_diagonalbar.location =   EmptyDiagonal.location   
         
                 
@@ -232,7 +248,7 @@ class ObjectCursorArray(bpy.types.Operator):
         # newly created cube will be automatically selected
         instanceplane = bpy.context.selected_objects[0]  
         instanceplane.scale = (0.25,1,1)
-        scene.collection.objects.link(instanceplane) 
+        #scene.collection.objects.link(instanceplane) 
         instanceplane.location = (self.boxwidth/2,0,-self.boxheight/2-f)   
         bpy.data.objects[instanceplane.name].hide_render = True
        # deselect_all(scene)   
@@ -243,7 +259,7 @@ class ObjectCursorArray(bpy.types.Operator):
         bpy.data.objects[instanceplane.name].instance_type = 'FACES'
         
         # Create extra Empties
-        EmptyTop   = create_empty(name = 'EmptyTop',size = max(self.boxwidth,self.boxheight)/4)
+        EmptyTop   = create_empty(name = 'EmptyTop',size = max(self.boxwidth,self.boxheight)/4,colname = TowerCol)
         EmptyTop.location = (self.boxwidth/2,0,self.boxheight/2+f)        
 #        scene.collection.objects.link(EmptyTop) 
         
@@ -257,7 +273,7 @@ class ObjectCursorArray(bpy.types.Operator):
         xx = length*sin(pi-Ngon_angle)
         yy = length*cos(pi-Ngon_angle)
         emptypos = (x1-xx,y1+yy,z2)
-        EmptyPolygon   = create_empty(name = 'EmptyPolygon',size = 1,location =  emptypos)        
+        EmptyPolygon   = create_empty(name = 'EmptyPolygon',size = 1,location =  emptypos,colname = TowerCol)        
         EmptyPolygon.rotation_euler = (0,0,3*pi-Ngon_angle)
 
         select_obj(instanceplane)
