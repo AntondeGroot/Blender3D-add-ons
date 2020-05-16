@@ -6,7 +6,8 @@ bl_info = {
 
 import bpy
 import mathutils
-from math import radians, tan
+from math import radians, atan
+import math
 def make_single_user():
     """ When you copy an object they will have the same material, you've already seen it happen for materials and 
     if you change the material of 1 object it changes all materials unless you unlink them by clicking on the number
@@ -21,10 +22,16 @@ def deselect_all(scene):
     #for ob in allobjects:
     #    make_single_user()
     #    bpy.data.objects[ob.name].select_set(False)
-
+def unlinkedcopy(object1):
+    object2 = object1.copy()
+    object2.data = object1.data.copy() #omit if you want a linked copy where they both point to the same mesh object
+    return object2
+    
+    
+    
 def select_obj(ob):
     bpy.context.view_layer.objects.active = ob
-
+    bpy.data.objects[ob.name].select_set(True)
 def all_single_users(scene):
     allobjects = scene.objects
     for ob in allobjects:
@@ -66,6 +73,11 @@ class ObjectCursorArray(bpy.types.Operator):
         description = 'How wide the diagonal beam goes to the center',
         min = 0,
         max = 1)
+    diagonalxy: bpy.props.FloatProperty(name="DiagonalXY%", 
+        default=0.75,    
+        description = 'How wide the diagonal beam goes to the center',
+        min = 0,
+        max = 1)
     beampercent: bpy.props.FloatProperty(name="Thickness", 
         default=0.1,
         description = 'thickness of the beam w.r.t. the box',
@@ -98,7 +110,8 @@ class ObjectCursorArray(bpy.types.Operator):
         boxcube.scale = (w,w,h)
         
         #copy object mesh (unlinked)
-        obj_topbar= bpy.data.objects.new('Topbar',object_beam.data)        
+        obj_topbar = unlinkedcopy(object_beam)
+        obj_topbar.name = 'Topbar'
         
         
         
@@ -117,6 +130,8 @@ class ObjectCursorArray(bpy.types.Operator):
             print(f"is too large {f,max(x,y),beamsize}")
             obj_topbar.scale = (f,self.boxwidth/y-f,f) 
             bpy.ops.object.transform_apply(location=False, rotation=True, scale=True) 
+        else:
+            f = beamsize
         print(f"newsize is {obj_topbar.dimensions}") 
                        
         all_single_users(scene)
@@ -124,8 +139,8 @@ class ObjectCursorArray(bpy.types.Operator):
 
         deselect_all(scene)
         # Determine how much the diagonal beam need to be slanted
-        angle = radians(90) - tan(self.boxwidth/self.boxheight) 
-        
+        angle = atan(self.boxheight/self.boxwidth) 
+        diagonallength = math.sqrt(self.boxheight**2+self.boxwidth**2)/2*self.diagonalpercent
         # Determine the center of the scene
         EmptyCenter = create_empty(name = 'EmptyCenter',size = max(self.boxwidth,self.boxheight)*1.5,location =  cursor)
 
@@ -159,45 +174,44 @@ class ObjectCursorArray(bpy.types.Operator):
         #copy object mesh (unlinked)
         #select_obj(obj_topbar)
         #obj_sidebar = bpy.ops.object.duplicate()
-        obj_sidebar = obj_topbar.copy() 
+        obj_sidebar = unlinkedcopy(obj_topbar)
+        obj_sidebar.name = 'Sidebar' 
         all_single_users(scene)
         scene.collection.objects.link(obj_sidebar)        
         all_single_users(scene)  
         select_obj(obj_sidebar)    
         obj_sidebar.rotation_euler = (radians(90),0,0)
-        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
         obj_sidebar.location = vec_side
         select_obj(obj_sidebar)  
-        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-        bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
-        z = obj_sidebar.dimensions[2]
+        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
         print(f" scale = {obj_sidebar.scale}")
-        sx,sy,sz = obj_sidebar.scale
-        obj_sidebar.scale = (sx,sy,sz*2)
-        scene.update()
-        """
+
         x,y,z = obj_sidebar.dimensions
-        print(f'dim = {x,y,z,}')
-        zh = (self.boxheight + obj_topbar.dimensions.z)/max(x,y,z)
-        print(f"zh = {zh}")
-        obj_sidebar.scale = (1,1,zh)
-        all_single_users(scene)
-        select_obj(obj_topbar)
-        print(f"type is {obj_sidebar.type}") 
-        bpy.ops.object.modifier_add(type='MIRROR')
-        bpy.data.objects[obj_topbar.name].modifiers["Mirror"].use_axis = (False, False, True)
-        bpy.data.objects[obj_topbar.name].modifiers["Mirror"].mirror_object = EmptyCenter
+        obj_sidebar.scale = (1,1,self.boxheight/z+2*f/z) 
+
         
-        select_obj(obj_sidebar)
+
         all_single_users(scene)
+        select_obj(obj_sidebar)
         bpy.ops.object.modifier_add(type='MIRROR')
         bpy.data.objects[obj_sidebar.name].modifiers["Mirror"].use_axis = (False, True, False)
         bpy.data.objects[obj_sidebar.name].modifiers["Mirror"].mirror_object = EmptyCenter
-        #bpy.data.objects[obj_topbar.name].modifiers["Mirror"].mirror_object
-        #obj_diagonal1 = obj_topbar.copy()
+
+        obj_diagonalbar = unlinkedcopy(obj_topbar)
+        fr = diagonallength/obj_diagonalbar.dimensions[1]
+        obj_diagonalbar.scale = (self.diagonalxy,fr,self.diagonalxy)
+        obj_diagonalbar.rotation_euler = (angle,0,0)
+        obj_diagonalbar.name = 'Diagonalbar' 
+        all_single_users(scene)
+        scene.collection.objects.link(obj_diagonalbar)
+        obj_diagonalbar.location =   EmptyDiagonal.location   
         
-        
-        
+                
+        select_obj(obj_diagonalbar)
+        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+        bpy.ops.object.modifier_add(type='MIRROR')
+        bpy.data.objects[obj_diagonalbar.name].modifiers["Mirror"].use_axis = (False, True, True)
+        bpy.data.objects[obj_diagonalbar.name].modifiers["Mirror"].mirror_object = EmptyCenter
         #scene.collection.objects.link(obj_diagonal1)
         
         #obj_diagonal1.rotation_euler = (angle,0,0)
@@ -210,7 +224,7 @@ class ObjectCursorArray(bpy.types.Operator):
         #print(obj_new.name)
         #bpy.data.objects[obj.name].modifiers['Mirror'].use_axis = (False,True,False)
         #bpy.data.objects[obj_new.name].select_set(False)
-        """
+        
         return {'FINISHED'}
 
 
