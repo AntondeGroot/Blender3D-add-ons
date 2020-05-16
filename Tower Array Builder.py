@@ -14,6 +14,7 @@ def make_single_user():
     """#object/relations/make single user/object n data
     bpy.ops.object.make_single_user(object=True, obdata=True, material=False, animation=False)
     
+
 def deselect_all(scene):
     #allobjects = scene.objects
     bpy.context.view_layer.objects.active = None    
@@ -23,6 +24,13 @@ def deselect_all(scene):
 
 def select_obj(ob):
     bpy.context.view_layer.objects.active = ob
+
+def all_single_users(scene):
+    allobjects = scene.objects
+    for ob in allobjects:
+        select_obj(ob)
+        make_single_user()
+
     
 def select_only_obj(object = None,scene = None):
     if object and scene:
@@ -35,14 +43,16 @@ def create_empty(name = 'empty object',size = 1,type = 'ARROWS',location =  math
     Empty.empty_display_type = type  
     Empty.location = location
     return Empty
-    
+
+           
 class ObjectCursorArray(bpy.types.Operator):
     """Create a Transmission Tower"""
     bl_idname = "object.tower_array"
     bl_label = "Tower Array"
     bl_options = {'REGISTER', 'UNDO'}
     print(f"testing\n"*10)
-    
+
+      
     boxheight: bpy.props.FloatProperty(name="Height", 
         default=3,
         description = 'Height of the box',
@@ -56,7 +66,12 @@ class ObjectCursorArray(bpy.types.Operator):
         description = 'How wide the diagonal beam goes to the center',
         min = 0,
         max = 1)
-    
+    beampercent: bpy.props.FloatProperty(name="Thickness", 
+        default=0.1,
+        description = 'thickness of the beam w.r.t. the box',
+        min = 0,
+        soft_min = 0.1,
+        max = 1)  
     #make a collection
     #TowerCollection = bpy.data.collections.new('TransmissionTower')
     #bpy.context.scene.collection.children.link(TowerCollection)
@@ -68,21 +83,45 @@ class ObjectCursorArray(bpy.types.Operator):
         scene = context.scene
         cursor = scene.cursor.location
         object_beam = context.active_object
+        all_single_users(scene)
+        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True) 
+        
+        bpy.ops.mesh.primitive_cube_add()
+        # newly created cube will be automatically selected
+        boxcube = bpy.context.selected_objects[0]  
+        boxcube.location = cursor
+        select_obj(boxcube)
+        bpy.ops.object.modifier_add(type='WIREFRAME') 
+        bpy.data.objects[boxcube.name].modifiers["Wireframe"].thickness = 0.06
+        w = self.boxwidth/boxcube.dimensions[0]
+        h = self.boxheight/boxcube.dimensions[2]
+        boxcube.scale = (w,w,h)
         
         #copy object mesh (unlinked)
-        beam_ob = bpy.data.objects.new('Beam',object_beam.data)        
+        obj_topbar= bpy.data.objects.new('Topbar',object_beam.data)        
         
-        print(f"type is {beam_ob.type}") 
+        
+        
+        
         #resize the beam if it is too large:
-        x,y,z = beam_ob.dimensions
-        
-        if max(x,y) > self.boxwidth:
-            f = self.boxwidth/max(x,y)
-            beam_ob.scale = (f,f,f)            
-        if x > y:
-            beam_ob.rotation_euler = (0,0,radians(90))
-        make_single_user() # to make sure you can apply modifiers etc
-        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        x,y,z = obj_topbar.dimensions
+        print(f"size is {x,y,z}") 
+        beamsize = min(self.boxwidth,self.boxheight)*self.beampercent
+        if x > y: #rotate the original beam correctly
+            obj_topbar.rotation_euler = (0,0,radians(90))
+        all_single_users(scene)
+        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)        
+        if x > beamsize:
+            
+            f = beamsize/max(x,y)
+            print(f"is too large {f,max(x,y),beamsize}")
+            obj_topbar.scale = (f,self.boxwidth/y-f,f) 
+            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True) 
+        print(f"newsize is {obj_topbar.dimensions}") 
+                       
+        all_single_users(scene)
+        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True) 
+
         deselect_all(scene)
         # Determine how much the diagonal beam need to be slanted
         angle = radians(90) - tan(self.boxwidth/self.boxheight) 
@@ -95,7 +134,7 @@ class ObjectCursorArray(bpy.types.Operator):
         
         vec_centertop = Vector((self.boxwidth/2, 0, self.boxheight/2))
         vec_corner = Vector((self.boxwidth/2, self.boxwidth/2, self.boxheight/2))
-        vec3 = Vector((self.boxwidth/2, self.boxwidth/2, 0))
+        vec_side = Vector((self.boxwidth/2, self.boxwidth/2, 0))
         # Create extra Empties
         EmptyCorner   = create_empty(name = 'EmptyCorner',size = max(self.boxwidth,self.boxheight)/4,location =  vec_corner)        
         EmptyFront    = create_empty(name = 'EmptyFront',size = max(self.boxwidth,self.boxheight)/4,location =  cursor + Vector((self.boxwidth/2,0,0)))                
@@ -105,27 +144,44 @@ class ObjectCursorArray(bpy.types.Operator):
         EmptyDiagonal.location = (EmptyFront.location*p + EmptyCorner.location*(2-p))/2
         
 
-        obj_topbar = bpy.data.objects.new('Beam',beam_ob.data)        
+        #obj_topbar = bpy.data.objects.new('Topbar',beam_ob.data)        
         scene.collection.objects.link(obj_topbar)        
-        make_single_user()
+        all_single_users(scene)
         obj_topbar.location = cursor + vec_centertop
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)   
-        obj_topbar.scale = (0, (EmptyCorner.location.y-cursor.y)/obj_topbar.dimensions.y,0)      
+        select_obj(obj_topbar)
+        bpy.ops.object.modifier_add(type='MIRROR')
+        bpy.data.objects[obj_topbar.name].modifiers["Mirror"].use_axis = (False, False, True)
+        bpy.data.objects[obj_topbar.name].modifiers["Mirror"].mirror_object = EmptyCenter
         
         
-        obj_sidebar = obj_topbar.copy()        
+         
+        #copy object mesh (unlinked)
+        #select_obj(obj_topbar)
+        #obj_sidebar = bpy.ops.object.duplicate()
+        obj_sidebar = obj_topbar.copy() 
+        all_single_users(scene)
         scene.collection.objects.link(obj_sidebar)        
-        make_single_user()        
+        all_single_users(scene)  
+        select_obj(obj_sidebar)    
         obj_sidebar.rotation_euler = (radians(90),0,0)
-        obj_sidebar.location = vec3
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-        
+        obj_sidebar.location = vec_side
+        select_obj(obj_sidebar)  
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
+        z = obj_sidebar.dimensions[2]
+        print(f" scale = {obj_sidebar.scale}")
+        sx,sy,sz = obj_sidebar.scale
+        obj_sidebar.scale = (sx,sy,sz*2)
+        scene.update()
+        """
         x,y,z = obj_sidebar.dimensions
         print(f'dim = {x,y,z,}')
         zh = (self.boxheight + obj_topbar.dimensions.z)/max(x,y,z)
         print(f"zh = {zh}")
         obj_sidebar.scale = (1,1,zh)
-        make_single_user()
+        all_single_users(scene)
         select_obj(obj_topbar)
         print(f"type is {obj_sidebar.type}") 
         bpy.ops.object.modifier_add(type='MIRROR')
@@ -133,7 +189,7 @@ class ObjectCursorArray(bpy.types.Operator):
         bpy.data.objects[obj_topbar.name].modifiers["Mirror"].mirror_object = EmptyCenter
         
         select_obj(obj_sidebar)
-        make_single_user()
+        all_single_users(scene)
         bpy.ops.object.modifier_add(type='MIRROR')
         bpy.data.objects[obj_sidebar.name].modifiers["Mirror"].use_axis = (False, True, False)
         bpy.data.objects[obj_sidebar.name].modifiers["Mirror"].mirror_object = EmptyCenter
@@ -154,7 +210,7 @@ class ObjectCursorArray(bpy.types.Operator):
         #print(obj_new.name)
         #bpy.data.objects[obj.name].modifiers['Mirror'].use_axis = (False,True,False)
         #bpy.data.objects[obj_new.name].select_set(False)
-               
+        """
         return {'FINISHED'}
 
 
