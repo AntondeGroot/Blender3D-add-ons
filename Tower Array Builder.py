@@ -73,7 +73,7 @@ class ObjectCursorArray(bpy.types.Operator):
         description = 'How wide the diagonal beam goes to the center',
         min = 0,
         max = 1)
-    diagonalxy: bpy.props.FloatProperty(name="DiagonalXY%", 
+    diagonalxy: bpy.props.FloatProperty(name="Diagonal size", 
         default=0.75,    
         description = 'How wide the diagonal beam goes to the center',
         min = 0,
@@ -84,6 +84,15 @@ class ObjectCursorArray(bpy.types.Operator):
         min = 0,
         soft_min = 0.1,
         max = 1)  
+    z_array: bpy.props.IntProperty(name="Z array", 
+        default=1,
+        description = 'Z',
+        min = 1)  
+    N_sides: bpy.props.IntProperty(name="Nr of sides", 
+        default=4,
+        description = 'Z',
+        min = 3,
+        soft_max = 32)  
     #make a collection
     #TowerCollection = bpy.data.collections.new('TransmissionTower')
     #bpy.context.scene.collection.children.link(TowerCollection)
