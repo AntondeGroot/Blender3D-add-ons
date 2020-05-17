@@ -384,7 +384,7 @@ class ObjectCursorArray(bpy.types.Operator):
         if True:
             
             for object in TowerCol.objects:
-                if 'empty' not in object.name.lower() and boxcube.name != object.name:
+                if object.type != 'EMPTY' and boxcube.name != object.name:
                     select_obj(object)
                     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
                     bpy.ops.object.origin_set(type = 'ORIGIN_CURSOR')
@@ -396,12 +396,7 @@ class ObjectCursorArray(bpy.types.Operator):
                         bpy.ops.object.modifier_apply(apply_as='DATA', modifier=mod.name)
             for object in TowerCol.objects:
                 if object.type == 'EMPTY':
-                    #if 'empty' in object.name.lower():
-                    
                     select_obj(object)
-                    if 'empty' not in object.name.lower():
-                        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-                        bpy.ops.object.origin_set(type = 'ORIGIN_CURSOR')
                     object.parent = boxcube
                     object.matrix_parent_inverse = boxcube.matrix_world.inverted()
         #restore 3D cursor
