@@ -8,13 +8,51 @@ import bpy
 import mathutils
 from math import radians, atan, sqrt, pi, sin, cos
 
+
+def assignmaterial(object,RGBA_color):
+    mat = bpy.data.materials.new(name="MaterialName") #set new material to  variable
+    object.data.materials.append(mat) #add the material to the object
+    bpy.context.object.active_material.diffuse_color = RGBA_color #change color
+
+    
+    """# Get material
+    bpy.ops.material.new("material ")
+    
+    mat = bpy.data.materials.get("Material")
+    if mat is None:
+        # create material
+        mat = bpy.data.materials.new(name="Material")
+
+    # Assign it to object
+    if object.data.materials:
+        # assign to 1st material slot
+        ob.data.materials[0] = mat
+    else:
+        # no slots
+        object.data.materials.append(mat)
+    """    
+
+
 def make_single_user():
     """ When you copy an object they will have the same material, you've already seen it happen for materials and 
     if you change the material of 1 object it changes all materials unless you unlink them by clicking on the number
     The same can happen if you copy a mesh. This will prevent you from being able to apply modifiers
     """#object/relations/make single user/object n data
     bpy.ops.object.make_single_user(object=True, obdata=True, material=False, animation=False)
+
+def cylinderarray(object,offset1,offset2, N1,N2 ):
+    array1 = bpy.data.objects[object.name].modifiers.new(name='array1',type='ARRAY')
+    array1.use_relative_offset = False
+    array1.use_object_offset = True
+    array1.offset_object = offset1
+    array1.count = N1
     
+    
+    array2 = bpy.data.objects[object.name].modifiers.new(name='array2',type='ARRAY')
+    array2.use_relative_offset = False
+    array2.use_object_offset = True
+    array2.offset_object = offset2
+    array2.count = N2  
 
 def deselect_all(scene):
     #allobjects = scene.objects
@@ -98,7 +136,7 @@ class ObjectCursorArray(bpy.types.Operator):
         soft_min = 0.1,
         max = 1)  
     z_array: bpy.props.IntProperty(name="Height array", 
-        default=1,
+        default=3,
         description = 'Z',
         min = 1)  
     N_sides: bpy.props.IntProperty(name="N polygon shape", 
@@ -109,10 +147,18 @@ class ObjectCursorArray(bpy.types.Operator):
     N_sides_used: bpy.props.IntProperty(name="N polygon used", 
         default=4,
         description = 'Z',
-        min = 3,
+        min = 1,
         soft_max = 32)  
-    ApplyBool : bpy.props.BoolProperty(name="Apply", description="", 
-        default=True, tags={}, subtype='NONE', update=None, get=None, set=None)
+    platethickness: bpy.props.FloatProperty(name="Plate Thickness", 
+        default=0.2,
+        description = '',
+        min = 0,
+        soft_max = 1.2)  
+    platesize: bpy.props.FloatProperty(name="Plate Size%", 
+        default=1.1,
+        description = '',
+        soft_min = 0.1,
+        soft_max = 2)  
     
     # delete all empty collections first
     collection2delete = []
@@ -129,11 +175,18 @@ class ObjectCursorArray(bpy.types.Operator):
         cursor = scene.cursor.location
         cursor_org = cursor
         object_beam = context.active_object
+        bpy.ops.object.origin_set(type = 'ORIGIN_GEOMETRY')
         
         TowerCol = bpy.data.collections.new('TransmissionTower')
         print(f"towcol {TowerCol}")
         bpy.context.scene.collection.children.link(TowerCol)
         
+        ## rgba colors for the materials
+        matcolor1 = (1,0,0,1)
+        matcolor2 = (0,1,0,1)
+        matcolor3 = (0,0,1,1)
+        
+
         
         all_single_users(scene)
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True) 
@@ -203,7 +256,10 @@ class ObjectCursorArray(bpy.types.Operator):
         # to avoid having to rotate the beam at the eind points: it's easier to use an extra empty and scale/rotate the object around the center
         p = self.diagonalpercent
         EmptyDiagonal.location = (EmptyFront.location*p + EmptyCorner.location*(2-p))/2
+     
         
+        
+                
 
         #obj_topbar = bpy.data.objects.new('Topbar',beam_ob.data)        
         #scene.collection.objects.link(obj_topbar)     
@@ -217,12 +273,15 @@ class ObjectCursorArray(bpy.types.Operator):
         bpy.data.objects[obj_topbar.name].modifiers["Mirror"].mirror_object = EmptyCenter
         
         
+                    
          
         #copy object mesh (unlinked)
-        #select_obj(obj_topbar)
-        #obj_sidebar = bpy.ops.object.duplicate()
+        select_obj(obj_topbar)
         obj_sidebar = unlinkedcopy(obj_topbar)
+        #select_obj(obj_sidebar)
         obj_sidebar.name = 'Sidebar' 
+        assignmaterial(obj_topbar, matcolor1)
+        assignmaterial(obj_sidebar, matcolor2)
         all_single_users(scene)
         #scene.collection.objects.link(obj_sidebar) 
         bpy.data.collections[TowerCol.name].objects.link(obj_sidebar)          
@@ -250,6 +309,7 @@ class ObjectCursorArray(bpy.types.Operator):
         obj_diagonalbar.scale = (self.diagonalxy,fr,self.diagonalxy)
         obj_diagonalbar.rotation_euler = (angle,0,0)
         obj_diagonalbar.name = 'Diagonalbar' 
+        assignmaterial(obj_diagonalbar,matcolor3)
         all_single_users(scene)
         #scene.collection.objects.link(obj_diagonalbar)
         bpy.data.collections[TowerCol.name].objects.link(obj_diagonalbar)   
@@ -263,27 +323,40 @@ class ObjectCursorArray(bpy.types.Operator):
         bpy.data.objects[obj_diagonalbar.name].modifiers["Mirror"].mirror_object = EmptyCenter
         #scene.collection.objects.link(obj_diagonal1)
         
-        #obj_diagonal1.rotation_euler = (angle,0,0)
+        #make a plate
+        if True:
+            bpy.ops.mesh.primitive_cube_add()
+            frontplate = bpy.context.selected_objects[0]  
+            frontplate.location = EmptyFront.location
+            frontplate.name = 'Frontplate'
+            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+            
+            #xc,yc,zc = frontplatecorner - EmptyFront.location
+            
+            #width = 2*abs(EmptyFront.location[1]-(EmptyCorner.location[1]-2*EmptyDiagonal.location[1]))
+            width = (EmptyDiagonal.location-EmptyFront.location)[1]/2*self.platesize
+            #height = 2*abs(EmptyFront.location[2]-(EmptyCorner.location[2]-2*EmptyDiagonal.location[2]))
+            height = (EmptyDiagonal.location-EmptyFront.location)[2]/2*self.platesize
+
+            xf,yf,zf = frontplate.dimensions
+            xd = obj_diagonalbar.dimensions[0]
+            sx = xd*self.platethickness/xf
+            sy = width*self.platesize/yf
+            sz = height/zf
+            print(f"height = {height},\n width = {width},\n sz = {sz},\n zf = {zf},\n sz = {sz}")
+            frontplate.scale = (sx,width,height)
+            movecollection(frontplate,TowerCol)
+            
+            
+            
+
         
        
         #add instancing plane
+        EmptyBottom   = create_empty(name = 'EmptyBottom',size = 1,colname = TowerCol)
+        EmptyBottom.location = Vector((self.boxwidth/2,0,-self.boxheight/2-f)) + cursor 
 
-        instanceplane = bpy.ops.mesh.primitive_plane_add()
-        # newly created cube will be automatically selected
-        instanceplane = bpy.context.selected_objects[0]  
-        instanceplane.scale = (0.25,1,1)
-        instanceplane.name = 'InstancePlane'
-        #scene.collection.objects.link(instanceplane) 
-        instanceplane.location = Vector((self.boxwidth/2,0,-self.boxheight/2-f)) + cursor 
-        movecollection(instanceplane, TowerCol)
-        #bpy.data.collections[TowerCol.name].objects.link(instanceplane)   
-        bpy.data.objects[instanceplane.name].hide_render = True
-       # deselect_all(scene)   
-        #bpy.ops.object.modifier_add(type='MIRROR')
-        #print(obj_new.name)
-        #bpy.data.objects[obj.name].modifiers['Mirror'].use_axis = (False,True,False)
-        #bpy.data.objects[obj_new.name].select_set(False)
-        bpy.data.objects[instanceplane.name].instance_type = 'FACES'
+        
         
         # Create extra Empties
         EmptyTop   = create_empty(name = 'EmptyTop',size = max(self.boxwidth,self.boxheight)/4,colname = TowerCol)
@@ -296,58 +369,42 @@ class ObjectCursorArray(bpy.types.Operator):
         Ngon_angle = (n - 2)*pi/n
         length = self.boxwidth/2
         x1,y1,z1 = EmptyCorner.location
-        x2,y2,z2 = instanceplane.location
+        x2,y2,z2 = EmptyBottom.location
         xx = length*sin(pi-Ngon_angle)
         yy = length*cos(pi-Ngon_angle)
         emptypos = (x1-xx,y1+yy,z2)
         EmptyPolygon   = create_empty(name = 'EmptyPolygon',size = 1,location =  emptypos,colname = TowerCol)        
         EmptyPolygon.rotation_euler = (0,0,3*pi-Ngon_angle)
 
-        select_obj(instanceplane)
+        select_obj(EmptyBottom)
         bpy.ops.view3d.snap_cursor_to_active()
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
         
-        array1 = bpy.data.objects[instanceplane.name].modifiers.new(name='array1',type='ARRAY')
-        obname = instanceplane.name
-        array1.use_relative_offset = False
-        array1.use_object_offset = True
-        array1.offset_object = EmptyPolygon
-        array1.count = self.N_sides_used
-        
-        
-        array2 = bpy.data.objects[instanceplane.name].modifiers.new(name='array2',type='ARRAY')
-        array2.use_relative_offset = False
-        array2.use_object_offset = True
-        array2.offset_object = EmptyTop
-        array2.count = self.z_array
-        """
-        bpy.ops.object.modifier_add(type='ARRAY')
-        obname2 = obname.copy()
-        bpy.data.objects[obname2].modifiers["Array"].use_relative_offset = False
-        bpy.data.objects[obname2].modifiers["Array"].use_object_offset = True
-        bpy.data.objects[obname2].modifiers["Array"].offset_object = EmptyTop
-        bpy.data.objects[obname2].modifiers["Array"].count = self.z_array
-        """
-        
-        #parent all objects in the TransmissionTower collection to the instanceplane except for the instance plane
-        
-        for object in TowerCol.objects:
-            if instanceplane.name != object.name and 'empty' not in object.name.lower() and boxcube.name != object.name:
-                select_obj(object)
-                bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-                bpy.ops.object.origin_set(type = 'ORIGIN_CURSOR')
-                object.parent = instanceplane
-                object.matrix_parent_inverse = instanceplane.matrix_world.inverted()
-        for object in TowerCol.objects:
-            if instanceplane.name == object.name or 'empty' in object.name.lower():
-                
-                select_obj(object)
-                if 'empty' not in object.name.lower():
+
+        if True:
+            #parent all objects in the TransmissionTower collection to the instanceplane except for the instance plane
+            
+            for object in TowerCol.objects:
+                if 'empty' not in object.name.lower() and boxcube.name != object.name:
+                    select_obj(object)
                     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
                     bpy.ops.object.origin_set(type = 'ORIGIN_CURSOR')
-                object.parent = boxcube
-                object.matrix_parent_inverse = boxcube.matrix_world.inverted()
-                
+                    cylinderarray(object,EmptyPolygon,EmptyTop, self.N_sides_used,self.z_array )
+                    print(f'modifiers = {object.modifiers}')
+                    
+                    #apply all modifiers of an object:
+                    for mod in object.modifiers:
+                        bpy.ops.object.modifier_apply(apply_as='DATA', modifier=mod.name)
+            for object in TowerCol.objects:
+                if 'empty' in object.name.lower():
+                    
+                    select_obj(object)
+                    if 'empty' not in object.name.lower():
+                        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+                        bpy.ops.object.origin_set(type = 'ORIGIN_CURSOR')
+                    object.parent = boxcube
+                    object.matrix_parent_inverse = boxcube.matrix_world.inverted()
+                    
         select_obj(EmptyCenter)
         bpy.ops.view3d.snap_cursor_to_active()                
         return {'FINISHED'}
