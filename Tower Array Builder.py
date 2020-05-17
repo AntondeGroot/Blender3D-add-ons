@@ -298,7 +298,7 @@ class ObjectCursorArray(bpy.types.Operator):
         select_obj(instanceplane)
         bpy.ops.view3d.snap_cursor_to_active()
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-        #array1 = bpy.ops.object.modifier_add(type='ARRAY')
+        
         array1 = bpy.data.objects[instanceplane.name].modifiers.new(name='array1',type='ARRAY')
         obname = instanceplane.name
         array1.use_relative_offset = False
@@ -306,6 +306,12 @@ class ObjectCursorArray(bpy.types.Operator):
         array1.offset_object = EmptyPolygon
         array1.count = self.N_sides
         
+        
+        array2 = bpy.data.objects[instanceplane.name].modifiers.new(name='array2',type='ARRAY')
+        array2.use_relative_offset = False
+        array2.use_object_offset = True
+        array2.offset_object = EmptyTop
+        array2.count = self.z_array
         """
         bpy.ops.object.modifier_add(type='ARRAY')
         obname2 = obname.copy()
@@ -326,7 +332,6 @@ class ObjectCursorArray(bpy.types.Operator):
                 object.matrix_parent_inverse = instanceplane.matrix_world.inverted()
         for object in TowerCol.objects:
             if instanceplane.name == object.name or 'empty' in object.name.lower():
-                pass
                 
                 select_obj(object)
                 if 'empty' not in object.name.lower():
