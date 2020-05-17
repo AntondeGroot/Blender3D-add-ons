@@ -111,20 +111,20 @@ class ObjectCursorArray(bpy.types.Operator):
     print("new script is run")
 
       
-    boxheight: bpy.props.FloatProperty(name="Height", 
+    boxheight: bpy.props.FloatProperty(name="Base height", 
         default=3,
-        description = 'Height of the box',
+        description = 'Base height',
         min = 1)
-    boxwidth: bpy.props.FloatProperty(name="Width", 
+    boxwidth: bpy.props.FloatProperty(name="Base width", 
         default=2,    
-        description = 'Width of the box',
+        description = 'Base width',
         min = 1)
-    diagonalpercent: bpy.props.FloatProperty(name="Diagonal%", 
+    diagonalpercent: bpy.props.FloatProperty(name="Diagonal length", 
         default=0.75,    
         description = 'How wide the diagonal beam goes to the center',
         min = 0,
         max = 1)
-    diagonalxy: bpy.props.FloatProperty(name="Diagonal size", 
+    diagonalxy: bpy.props.FloatProperty(name="Diagonal width", 
         default=0.75,    
         description = 'How wide the diagonal beam goes to the center',
         min = 0,
@@ -166,7 +166,7 @@ class ObjectCursorArray(bpy.types.Operator):
         nr_objects = len(list(collection.all_objects))
         if nr_objects == 0:
             collection2delete.append(collection)
-    
+
     for collection in collection2delete:
         bpy.context.scene.collection.children.unlink(collection)
 
@@ -382,7 +382,6 @@ class ObjectCursorArray(bpy.types.Operator):
         
 
         if True:
-            #parent all objects in the TransmissionTower collection to the instanceplane except for the instance plane
             
             for object in TowerCol.objects:
                 if 'empty' not in object.name.lower() and boxcube.name != object.name:
@@ -396,7 +395,8 @@ class ObjectCursorArray(bpy.types.Operator):
                     for mod in object.modifiers:
                         bpy.ops.object.modifier_apply(apply_as='DATA', modifier=mod.name)
             for object in TowerCol.objects:
-                if 'empty' in object.name.lower():
+                if object.type == 'EMPTY':
+                    #if 'empty' in object.name.lower():
                     
                     select_obj(object)
                     if 'empty' not in object.name.lower():
@@ -404,9 +404,15 @@ class ObjectCursorArray(bpy.types.Operator):
                         bpy.ops.object.origin_set(type = 'ORIGIN_CURSOR')
                     object.parent = boxcube
                     object.matrix_parent_inverse = boxcube.matrix_world.inverted()
-                    
+        #restore 3D cursor
         select_obj(EmptyCenter)
-        bpy.ops.view3d.snap_cursor_to_active()                
+        bpy.ops.view3d.snap_cursor_to_active()   
+        if True:#remove all empties
+            for object in TowerCol.objects:
+                if object.type == 'EMPTY':
+                    bpy.data.collections[TowerCol.name].objects.unlink(object)   
+                 
+                     
         return {'FINISHED'}
 
 
