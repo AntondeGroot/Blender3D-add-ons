@@ -133,6 +133,7 @@ class ObjectCursorArray(bpy.types.Operator):
         bpy.ops.mesh.primitive_cube_add()
         # newly created cube will be automatically selected
         boxcube = bpy.context.selected_objects[0]  
+        
         boxcube.location = cursor
         movecollection(boxcube,TowerCol)
         select_obj(boxcube)
@@ -140,7 +141,9 @@ class ObjectCursorArray(bpy.types.Operator):
         bpy.data.objects[boxcube.name].modifiers["Wireframe"].thickness = 0.06
         w = self.boxwidth/boxcube.dimensions[0]
         h = self.boxheight/boxcube.dimensions[2]
-        boxcube.scale = (w,w,h)
+        boxcube.scale = (2*w,2*w,2*h)
+        
+
         
         #copy object mesh (unlinked)
         obj_topbar = unlinkedcopy(object_beam)
@@ -261,6 +264,7 @@ class ObjectCursorArray(bpy.types.Operator):
         # newly created cube will be automatically selected
         instanceplane = bpy.context.selected_objects[0]  
         instanceplane.scale = (0.25,1,1)
+        instanceplane.name = 'InstancePlane'
         #scene.collection.objects.link(instanceplane) 
         instanceplane.location = Vector((self.boxwidth/2,0,-self.boxheight/2-f)) + cursor 
         movecollection(instanceplane, TowerCol)
@@ -275,7 +279,7 @@ class ObjectCursorArray(bpy.types.Operator):
         
         # Create extra Empties
         EmptyTop   = create_empty(name = 'EmptyTop',size = max(self.boxwidth,self.boxheight)/4,colname = TowerCol)
-        EmptyTop.location = (self.boxwidth/2,0,self.boxheight/2+f)        
+        EmptyTop.location = Vector((self.boxwidth/2,0,self.boxheight/2+f))  + cursor      
 #        scene.collection.objects.link(EmptyTop) 
         
         #determine polygon's next center of the edge.
@@ -294,16 +298,45 @@ class ObjectCursorArray(bpy.types.Operator):
         select_obj(instanceplane)
         bpy.ops.view3d.snap_cursor_to_active()
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-        bpy.ops.object.modifier_add(type='ARRAY')
+        #array1 = bpy.ops.object.modifier_add(type='ARRAY')
+        array1 = bpy.data.objects[instanceplane.name].modifiers.new(name='array1',type='ARRAY')
         obname = instanceplane.name
-        bpy.data.objects[obname].modifiers["Array"].use_relative_offset = False
-        bpy.data.objects[obname].modifiers["Array"].use_object_offset = True
-        bpy.data.objects[obname].modifiers["Array"].offset_object = EmptyPolygon
-        bpy.data.objects[obname].modifiers["Array"].count = self.N_sides
+        array1.use_relative_offset = False
+        array1.use_object_offset = True
+        array1.offset_object = EmptyPolygon
+        array1.count = self.N_sides
         
+        """
+        bpy.ops.object.modifier_add(type='ARRAY')
+        obname2 = obname.copy()
+        bpy.data.objects[obname2].modifiers["Array"].use_relative_offset = False
+        bpy.data.objects[obname2].modifiers["Array"].use_object_offset = True
+        bpy.data.objects[obname2].modifiers["Array"].offset_object = EmptyTop
+        bpy.data.objects[obname2].modifiers["Array"].count = self.z_array
+        """
+        
+        #parent all objects in the TransmissionTower collection to the instanceplane except for the instance plane
+        
+        for object in TowerCol.objects:
+            if instanceplane.name != object.name and 'empty' not in object.name.lower() and boxcube.name != object.name:
+                select_obj(object)
+                bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+                bpy.ops.object.origin_set(type = 'ORIGIN_CURSOR')
+                object.parent = instanceplane
+                object.matrix_parent_inverse = instanceplane.matrix_world.inverted()
+        for object in TowerCol.objects:
+            if instanceplane.name == object.name or 'empty' in object.name.lower():
+                pass
+                
+                select_obj(object)
+                if 'empty' not in object.name.lower():
+                    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+                    bpy.ops.object.origin_set(type = 'ORIGIN_CURSOR')
+                object.parent = boxcube
+                object.matrix_parent_inverse = boxcube.matrix_world.inverted()
+                
         select_obj(EmptyCenter)
-        bpy.ops.view3d.snap_cursor_to_active()
-        
+        bpy.ops.view3d.snap_cursor_to_active()                
         return {'FINISHED'}
 
 
