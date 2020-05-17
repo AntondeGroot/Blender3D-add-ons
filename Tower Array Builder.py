@@ -312,7 +312,7 @@ class ObjectCursorArray(bpy.types.Operator):
         array1.use_relative_offset = False
         array1.use_object_offset = True
         array1.offset_object = EmptyPolygon
-        array1.count = self.N_sides
+        array1.count = self.N_sides_used
         
         
         array2 = bpy.data.objects[instanceplane.name].modifiers.new(name='array2',type='ARRAY')
