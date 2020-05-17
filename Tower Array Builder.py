@@ -101,11 +101,19 @@ class ObjectCursorArray(bpy.types.Operator):
         default=1,
         description = 'Z',
         min = 1)  
-    N_sides: bpy.props.IntProperty(name="Nr of sides", 
+    N_sides: bpy.props.IntProperty(name="N polygon", 
         default=4,
         description = 'Z',
         min = 3,
         soft_max = 32)  
+    N_sides_used: bpy.props.IntProperty(name="N polygon", 
+        default=4,
+        description = 'Z',
+        min = 3,
+        soft_max = 32)  
+    ApplyBool : bpy.props.BoolProperty(name="Apply", description="", 
+        default=True, tags={}, subtype='NONE', update=None, get=None, set=None)
+    
     # delete all empty collections first
     collection2delete = []
     for collection in bpy.context.scene.collection.children:
