@@ -6,7 +6,7 @@ bl_info = {
 
 import bpy
 import mathutils
-from math import radians, atan, sqrt, pi, sin, cos
+from math import radians, atan, sqrt, pi, sin, cos, tan
 
 
 def assignmaterial(object,RGBA_color):
@@ -40,19 +40,19 @@ def make_single_user():
     """#object/relations/make single user/object n data
     bpy.ops.object.make_single_user(object=True, obdata=True, material=False, animation=False)
 
-def cylinderarray(object,offset1,offset2, N1,N2 ):
+def cylinderarray(object,offset, N):
     array1 = bpy.data.objects[object.name].modifiers.new(name='array1',type='ARRAY')
     array1.use_relative_offset = False
     array1.use_object_offset = True
-    array1.offset_object = offset1
-    array1.count = N1
+    array1.offset_object = offset
+    array1.count = N
     
-    
+def heightarray(object,offset, N ):
     array2 = bpy.data.objects[object.name].modifiers.new(name='array2',type='ARRAY')
     array2.use_relative_offset = False
     array2.use_object_offset = True
-    array2.offset_object = offset2
-    array2.count = N2  
+    array2.offset_object = offset
+    array2.count = N
 
 def deselect_all(scene):
     #allobjects = scene.objects
@@ -171,6 +171,8 @@ class ObjectCursorArray(bpy.types.Operator):
         bpy.context.scene.collection.children.unlink(collection)
 
     def execute(self, context):
+        if self.N_sides_used > self.N_sides:
+            self.N_sides_used = self.N_sides
         scene = context.scene
         cursor = scene.cursor.location
         cursor_org = cursor
@@ -226,6 +228,7 @@ class ObjectCursorArray(bpy.types.Operator):
             f = beamsize/max(x,y)
             print(f"is too large {f,max(x,y),beamsize}")
             obj_topbar.scale = (f,self.boxwidth/y-f,f) 
+            barscale = f
             bpy.ops.object.transform_apply(location=False, rotation=True, scale=True) 
         else:
             f = beamsize
@@ -380,33 +383,70 @@ class ObjectCursorArray(bpy.types.Operator):
         bpy.ops.view3d.snap_cursor_to_active()
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
         
-
-        if True:
+        
+        
+        ASSIGN_MODS = True
+        APPLY_MODS  = False
+        DELETE_EMPTIES = False
+        DRAW_SPIRE = True
+        if DRAW_SPIRE:
+            #distance from center of topbar to center of the polygon
+            pos_x = EmptyTop.location[0] - (self.boxwidth/2) * tan(Ngon_angle/2) 
+            pos_y = EmptyTop.location[1]
+            pos_z = EmptyTop.location[2] + (self.boxheight) * (self.z_array)
             
+            EmptySpire   = create_empty(name = 'EmptySpire',size = 1,colname = TowerCol)
+            EmptySpire.location = Vector((pos_x,pos_y,pos_z))  
+            x0,y0,z0 = EmptySpire.location
+            x1,y1,_ = EmptyCorner.location
+            z1 = EmptyPolygon.location[2] + (EmptyTop.location[2]-EmptyPolygon.location[2])*self.z_array #exactly the highest point, accounts for width of beams
+            
+            EmptySpireHalf   = create_empty(name = 'EmptySpireHalf',size = 5,colname = TowerCol)
+            EmptySpireHalf.location = Vector(((x0+x1)/2,(y0+y1)/2,(z0+z1)/2))  
+            
+            obj_spire = unlinkedcopy(object_beam)
+            obj_spire.name = 'SpireBar'
+            obj_spire.location = EmptySpireHalf.location
+            scene.collection.objects.link(obj_spire)     
+
+            O = (pos_z-z1)
+            A = sqrt((EmptySpire.location[0]-EmptyCorner.location[0])**2 + (EmptySpire.location[1]-EmptyCorner.location[1])**2)
+            S = sqrt(O**2+A**2)
+            z_angle = atan(O/A)
+            yscale = S/obj_spire.dimensions[1]
+            obj_spire.scale = (barscale,yscale,barscale)
+            obj_spire.rotation_euler = (-z_angle,0,-Ngon_angle/2)
+            movecollection(obj_spire,TowerCol)
+            
+        if ASSIGN_MODS:
             for object in TowerCol.objects:
                 if object.type != 'EMPTY' and boxcube.name != object.name:
                     select_obj(object)
                     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
                     bpy.ops.object.origin_set(type = 'ORIGIN_CURSOR')
-                    cylinderarray(object,EmptyPolygon,EmptyTop, self.N_sides_used,self.z_array )
-                    print(f'modifiers = {object.modifiers}')
+                    cylinderarray(object, EmptyPolygon, self.N_sides_used )
+                    if object != obj_spire:
+                        heightarray(object, EmptyTop, self.z_array)
                     
-                    #apply all modifiers of an object:
-                    for mod in object.modifiers:
-                        bpy.ops.object.modifier_apply(apply_as='DATA', modifier=mod.name)
+                    print(f'modifiers = {object.modifiers}')                    
+                    if APPLY_MODS:
+                        #apply all modifiers of an object:
+                        for mod in object.modifiers:
+                            bpy.ops.object.modifier_apply(apply_as='DATA', modifier=mod.name)
+            #PARENT TO CUBE
             for object in TowerCol.objects:
-                if object.type == 'EMPTY':
+                if object.type == 'EMPTY' or object.type == 'MESH' and object != boxcube:
                     select_obj(object)
                     object.parent = boxcube
                     object.matrix_parent_inverse = boxcube.matrix_world.inverted()
         #restore 3D cursor
         select_obj(EmptyCenter)
         bpy.ops.view3d.snap_cursor_to_active()   
-        if True:#remove all empties
+        if DELETE_EMPTIES:#remove all empties
             for object in TowerCol.objects:
                 if object.type == 'EMPTY':
                     bpy.data.collections[TowerCol.name].objects.unlink(object)   
-                 
+        
                      
         return {'FINISHED'}
 
