@@ -8,6 +8,168 @@ import bpy
 import mathutils
 from math import radians, atan, sqrt, pi, sin, cos, tan
 
+import bpy
+
+from bpy.props import (StringProperty,
+                       BoolProperty,
+                       IntProperty,
+                       FloatProperty,
+                       FloatVectorProperty,
+                       EnumProperty,
+                       PointerProperty,
+                       )
+from bpy.types import (Panel,
+                       Operator,
+                       AddonPreferences,
+                       PropertyGroup,
+                       )
+
+
+class MySettings(PropertyGroup):#https://blender.stackexchange.com/questions/35007/how-can-i-add-a-checkbox-in-the-tools-ui
+    my_bool : BoolProperty(
+        name="Enable or Disable",
+        description="A bool property",
+        default = False
+        )
+
+    my_int : IntProperty(
+        name = "Set a value",
+        description="A integer property",
+        default = 23,
+        min = 10,
+        max = 100
+        )
+
+    my_float : FloatProperty(
+        name = "Base height",
+        description = "A float property",
+        default = 3,
+        min = 1
+        )
+    boxheight: FloatProperty(
+        name="Base height", 
+        default=3,
+        description = 'Base height',
+        min = 1)
+        
+    ###
+    boxheight: FloatProperty(
+        name="Base height", 
+        default=3,
+        description = 'Base height',
+        min = 1)
+    boxwidth: bpy.props.FloatProperty(name="Base width", 
+        default=2,    
+        description = 'Base width',
+        min = 1)
+    diagonalpercent: bpy.props.FloatProperty(name="Diagonal length", 
+        default=0.75,    
+        description = 'How wide the diagonal beam goes to the center',
+        min = 0,
+        max = 1)
+    diagonalxy: bpy.props.FloatProperty(name="Diagonal width", 
+        default=0.75,    
+        description = 'How wide the diagonal beam goes to the center',
+        min = 0,
+        max = 1)
+    beampercent: bpy.props.FloatProperty(name="Thickness", 
+        default=0.1,
+        description = 'thickness of the beam w.r.t. the box',
+        min = 0,
+        soft_min = 0.1,
+        max = 1)  
+    z_array: bpy.props.IntProperty(name="Height array", 
+        default=3,
+        description = 'Z',
+        min = 1)  
+    N_sides: bpy.props.IntProperty(name="N polygon shape", 
+        default=4,
+        description = 'Z',
+        min = 3,
+        soft_max = 32)  
+    N_sides_used: bpy.props.IntProperty(name="N polygon used", 
+        default=4,
+        description = 'Z',
+        min = 1,
+        soft_max = 32)  
+    platethickness: bpy.props.FloatProperty(name="Plate Thickness", 
+        default=0.2,
+        description = '',
+        min = 0,
+        soft_max = 1.2)  
+    platesize: bpy.props.FloatProperty(name="Plate Size%", 
+        default=1.1,
+        description = '',
+        soft_min = 0.1,
+        soft_max = 2)  
+        
+class PanelMain(bpy.types.Panel):
+    """Creates a Panel in the scene context of the properties editor"""
+    bl_label = "Tower Array"
+    bl_idname = "PT_panelmain"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = "UI"
+    bl_category = 'Tower Array'
+    bl_options = {'DEFAULT_CLOSED'}
+    
+    def draw(self, context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text='sample text')
+
+class PanelBase(bpy.types.Panel):
+    """Creates a Panel in the scene context of the properties editor"""
+    bl_label = "Base"
+    bl_idname = "PT_panelbase"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = "UI"
+    bl_category = 'Tower Array'
+    bl_parent_id = 'PT_panelmain'
+    
+    def draw(self, context):
+        layout = self.layout
+        obj = context.object
+        scene = context.scene
+        mytool = scene.my_tool
+        
+        row = layout.row()
+        row.label(text='Box')
+        
+        # display the properties
+        layout.prop(mytool, "boxheight", text="height")
+        layout.prop(mytool, "boxwidth", text="width")
+        row = layout.row()
+        row.label(text='Polygon Base Shape')
+        layout.prop(mytool, "N_sides", text="N polygon")
+        layout.prop(mytool, "N_sides_used", text="width")
+        
+        
+
+
+class PanelSpire(bpy.types.Panel):
+    """Creates a Panel in the scene context of the properties editor"""
+    bl_label = "Tower Spire"
+    bl_idname = "PT_panelspire"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = "UI"
+    bl_category = 'Tower Array'
+    bl_parent_id = 'PT_panelmain'
+    bl_options = {'DEFAULT_CLOSED'}
+    
+    def draw(self, context):
+        layout = self.layout
+        obj = context.object
+        scene = context.scene
+        mytool = scene.my_tool
+        
+        row = layout.row()
+        row.label(text='sample text')
+        
+        # display the properties
+        layout.prop(mytool, "my_bool", text="Bool Property")
+        layout.prop(mytool, "my_int", text="Integer Property")
+        layout.prop(mytool, "my_float", text="Float Property")
+
 
 def assignmaterial(object,RGBA_color):
     mat = bpy.data.materials.new(name="MaterialName") #set new material to  variable
@@ -111,54 +273,7 @@ class ObjectCursorArray(bpy.types.Operator):
     print("new script is run")
 
       
-    boxheight: bpy.props.FloatProperty(name="Base height", 
-        default=3,
-        description = 'Base height',
-        min = 1)
-    boxwidth: bpy.props.FloatProperty(name="Base width", 
-        default=2,    
-        description = 'Base width',
-        min = 1)
-    diagonalpercent: bpy.props.FloatProperty(name="Diagonal length", 
-        default=0.75,    
-        description = 'How wide the diagonal beam goes to the center',
-        min = 0,
-        max = 1)
-    diagonalxy: bpy.props.FloatProperty(name="Diagonal width", 
-        default=0.75,    
-        description = 'How wide the diagonal beam goes to the center',
-        min = 0,
-        max = 1)
-    beampercent: bpy.props.FloatProperty(name="Thickness", 
-        default=0.1,
-        description = 'thickness of the beam w.r.t. the box',
-        min = 0,
-        soft_min = 0.1,
-        max = 1)  
-    z_array: bpy.props.IntProperty(name="Height array", 
-        default=3,
-        description = 'Z',
-        min = 1)  
-    N_sides: bpy.props.IntProperty(name="N polygon shape", 
-        default=4,
-        description = 'Z',
-        min = 3,
-        soft_max = 32)  
-    N_sides_used: bpy.props.IntProperty(name="N polygon used", 
-        default=4,
-        description = 'Z',
-        min = 1,
-        soft_max = 32)  
-    platethickness: bpy.props.FloatProperty(name="Plate Thickness", 
-        default=0.2,
-        description = '',
-        min = 0,
-        soft_max = 1.2)  
-    platesize: bpy.props.FloatProperty(name="Plate Size%", 
-        default=1.1,
-        description = '',
-        soft_min = 0.1,
-        soft_max = 2)  
+
     
     # delete all empty collections first
     collection2delete = []
@@ -233,7 +348,7 @@ class ObjectCursorArray(bpy.types.Operator):
         else:
             f = beamsize
         print(f"newsize is {obj_topbar.dimensions}") 
-                       
+#                       
         all_single_users(scene)
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True) 
 
@@ -457,7 +572,11 @@ def menu_func(self, context):
 # store keymaps here to access after registration
 addon_keymaps = []
 
-
+classes = (
+    MySettings,
+    PanelMain,
+    PanelBase)
+    
 def register():
     bpy.utils.register_class(ObjectCursorArray)
     bpy.types.VIEW3D_MT_object.append(menu_func)
@@ -467,23 +586,33 @@ def register():
     # Note that in background mode (no GUI available), keyconfigs are not available either,
     # so we have to check this to avoid nasty errors in background case.
     kc = wm.keyconfigs.addon
+    """
     if kc:
         km = wm.keyconfigs.addon.keymaps.new(name='Object Mode', space_type='EMPTY')
         kmi = km.keymap_items.new(ObjectCursorArray.bl_idname, 'T', 'PRESS', ctrl=True, shift=True)
         kmi.properties.boxheight = 3
         addon_keymaps.append((km, kmi))
+    """
+    for cls in classes:
+        bpy.utils.register_class(cls)        
+    bpy.types.Scene.my_tool = PointerProperty(type=MySettings)
+
+    bpy.utils.register_class(PanelSpire)
 
 def unregister():
     # Note: when unregistering, it's usually good practice to do it in reverse order you registered.
     # Can avoid strange issues like keymap still referring to operators already unregistered...
+    bpy.utils.unregister_class(PanelMain)
+    bpy.utils.unregister_class(PanelSpire)
     # handle the keymap
+    
     for km, kmi in addon_keymaps:
         km.keymap_items.remove(kmi)
     addon_keymaps.clear()
 
     bpy.utils.unregister_class(ObjectCursorArray)
     bpy.types.VIEW3D_MT_object.remove(menu_func)
-
+    del bpy.types.Scene.my_tool
 
 if __name__ == "__main__":
     register()
