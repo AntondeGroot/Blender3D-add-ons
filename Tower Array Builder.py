@@ -141,7 +141,7 @@ class PanelBase(bpy.types.Panel):
         row = layout.row()
         row.label(text='Polygon Base Shape')
         layout.prop(mytool, "N_sides", text="N polygon")
-        layout.prop(mytool, "N_sides_used", text="width")
+        layout.prop(mytool, "N_sides_used", text="nr of sides shown")
         
         
 
@@ -166,7 +166,7 @@ class PanelSpire(bpy.types.Panel):
         row.label(text='sample text')
         
         # display the properties
-        layout.prop(mytool, "my_bool", text="Bool Property")
+        layout.prop(mytool, "my_bool", text="Put a spire on top")
         layout.prop(mytool, "my_int", text="Integer Property")
         layout.prop(mytool, "my_float", text="Float Property")
 
