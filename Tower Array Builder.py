@@ -26,31 +26,6 @@ from bpy.types import (Panel,
 
 
 class MySettings(PropertyGroup):#https://blender.stackexchange.com/questions/35007/how-can-i-add-a-checkbox-in-the-tools-ui
-    my_bool : BoolProperty(
-        name="Enable or Disable",
-        description="A bool property",
-        default = False
-        )
-
-    my_int : IntProperty(
-        name = "Set a value",
-        description="A integer property",
-        default = 23,
-        min = 10,
-        max = 100
-        )
-
-    my_float : FloatProperty(
-        name = "Base height",
-        description = "A float property",
-        default = 3,
-        min = 1
-        )
-    boxheight: FloatProperty(
-        name="Base height", 
-        default=3,
-        description = 'Base height',
-        min = 1)
         
     ###
     boxheight: FloatProperty(
@@ -92,6 +67,7 @@ class MySettings(PropertyGroup):#https://blender.stackexchange.com/questions/350
         description = 'Z',
         min = 1,
         soft_max = 32)  
+        ##
     platethickness: bpy.props.FloatProperty(name="Plate Thickness", 
         default=0.2,
         description = '',
@@ -102,7 +78,28 @@ class MySettings(PropertyGroup):#https://blender.stackexchange.com/questions/350
         description = '',
         soft_min = 0.1,
         soft_max = 2)  
+    platebool: bpy.props.BoolProperty(name="Plate bool", 
+        default=False)
         
+        ##
+    spirepos: bpy.props.FloatProperty(name="Spire pos", 
+        default=0,
+        description = '',
+        soft_min = -10,
+        soft_max = 10)  
+    spirelength: bpy.props.FloatProperty(name="Spire length", 
+        default=3,
+        description = '',
+        min = 0,
+        soft_max = 20)  
+    spirebool: bpy.props.BoolProperty(name="Spire bool", default=False)
+    ###
+    ASSIGN_MODS : bpy.props.BoolProperty(name="Spire bool", default=True)
+    APPLY_MODS  : bpy.props.BoolProperty(name="Spire bool", default=True)
+    DELETE_EMPTIES : bpy.props.BoolProperty(name="Spire bool", default=True)
+    JOIN_OBJECTS: bpy.props.BoolProperty(name="join bool", default=False)
+    def get(self):
+        return self.boxheight
 class PanelMain(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
     bl_label = "Tower Array"
@@ -115,7 +112,16 @@ class PanelMain(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         row = layout.row()
-        row.label(text='sample text')
+        row.label(text='Create a Tower by first selecting')
+        row = layout.row()
+        row.label(text='a default cube and edit its shape')
+        row = layout.row()
+        row.label(text='in the Y axis to create an I beam')
+        row = layout.row()
+        row.label(text='or a "+" Beam')
+        row = layout.row()
+        
+        layout.operator('object.tower_array', text = 'Simple Op')
 
 class PanelBase(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
@@ -133,17 +139,28 @@ class PanelBase(bpy.types.Panel):
         mytool = scene.my_tool
         
         row = layout.row()
-        row.label(text='Box')
+        row.label(text='Box',icon = "SNAP_VOLUME")
+        
         
         # display the properties
         layout.prop(mytool, "boxheight", text="height")
         layout.prop(mytool, "boxwidth", text="width")
         row = layout.row()
-        row.label(text='Polygon Base Shape')
+        row.label(text='Polygon Base Shape',icon = "SEQ_CHROMA_SCOPE")
         layout.prop(mytool, "N_sides", text="N polygon")
         layout.prop(mytool, "N_sides_used", text="nr of sides shown")
+        row = layout.row()
+        row.label(text='Diagonal Beams',icon = "SORTBYEXT")
+        layout.prop(mytool, "diagonalxy", text = 'beamsize'  )
+        row = layout.row()
+        row.label(text='Side Panels',icon = "FACESEL" )
         
-        
+
+        layout.prop(mytool, "platethickness", text = "thickness")
+        layout.prop(mytool, "platesize", text = "size")
+        layout.prop(mytool, "beampercent", text = 'Gap (Beam length)') 
+        layout.prop(mytool, "platebool", text = "fill up side panels")        
+  
 
 
 class PanelSpire(bpy.types.Panel):
@@ -163,13 +180,34 @@ class PanelSpire(bpy.types.Panel):
         mytool = scene.my_tool
         
         row = layout.row()
-        row.label(text='sample text')
         
         # display the properties
-        layout.prop(mytool, "my_bool", text="Put a spire on top")
-        layout.prop(mytool, "my_int", text="Integer Property")
-        layout.prop(mytool, "my_float", text="Float Property")
+        layout.prop(mytool, "spirebool", text="Put a spire on top")
+        layout.prop(mytool, "spirepos", text="Spire position")
+        layout.prop(mytool, "spirelength", text="Spire length")
 
+class PanelFinal(bpy.types.Panel):
+    """Creates a Panel in the scene context of the properties editor"""
+    bl_label = "Final processing"
+    bl_idname = "PT_panelfinal"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = "UI"
+    bl_category = 'Tower Array'
+    bl_parent_id = 'PT_panelmain'
+    
+    def draw(self, context):
+        layout = self.layout
+        obj = context.object
+        scene = context.scene
+        mytool = scene.my_tool      
+        row = layout.row()
+        layout.prop(mytool, "ASSIGN_MODS", text="assign modifiers")
+        layout.prop(mytool, "APPLY_MODS", text="apply the modifiers")
+        layout.prop(mytool, "DELETE_EMPTIES", text="delete all empties")
+        layout.prop(mytool, "JOIN_OBJECTS", text="join all the meshes")
+
+
+    
 
 def assignmaterial(object,RGBA_color):
     mat = bpy.data.materials.new(name="MaterialName") #set new material to  variable
@@ -286,6 +324,9 @@ class ObjectCursorArray(bpy.types.Operator):
         bpy.context.scene.collection.children.unlink(collection)
 
     def execute(self, context):
+        
+        print(self.MySettings.get())
+        
         if self.N_sides_used > self.N_sides:
             self.N_sides_used = self.N_sides
         scene = context.scene
@@ -500,9 +541,9 @@ class ObjectCursorArray(bpy.types.Operator):
         
         
         
-        ASSIGN_MODS = True
-        APPLY_MODS  = False
-        DELETE_EMPTIES = False
+        
+        
+        
         DRAW_SPIRE = True
         if DRAW_SPIRE:
             #distance from center of topbar to center of the polygon
@@ -533,7 +574,7 @@ class ObjectCursorArray(bpy.types.Operator):
             obj_spire.rotation_euler = (-z_angle,0,-Ngon_angle/2)
             movecollection(obj_spire,TowerCol)
             
-        if ASSIGN_MODS:
+        if self.ASSIGN_MODS:
             for object in TowerCol.objects:
                 if object.type != 'EMPTY' and boxcube.name != object.name:
                     select_obj(object)
@@ -544,7 +585,7 @@ class ObjectCursorArray(bpy.types.Operator):
                         heightarray(object, EmptyTop, self.z_array)
                     
                     print(f'modifiers = {object.modifiers}')                    
-                    if APPLY_MODS:
+                    if self.APPLY_MODS:
                         #apply all modifiers of an object:
                         for mod in object.modifiers:
                             bpy.ops.object.modifier_apply(apply_as='DATA', modifier=mod.name)
@@ -557,7 +598,7 @@ class ObjectCursorArray(bpy.types.Operator):
         #restore 3D cursor
         select_obj(EmptyCenter)
         bpy.ops.view3d.snap_cursor_to_active()   
-        if DELETE_EMPTIES:#remove all empties
+        if self.DELETE_EMPTIES:#remove all empties
             for object in TowerCol.objects:
                 if object.type == 'EMPTY':
                     bpy.data.collections[TowerCol.name].objects.unlink(object)   
@@ -575,7 +616,9 @@ addon_keymaps = []
 classes = (
     MySettings,
     PanelMain,
-    PanelBase)
+    PanelBase,
+    PanelSpire,
+    PanelFinal)
     
 def register():
     bpy.utils.register_class(ObjectCursorArray)
@@ -597,13 +640,13 @@ def register():
         bpy.utils.register_class(cls)        
     bpy.types.Scene.my_tool = PointerProperty(type=MySettings)
 
-    bpy.utils.register_class(PanelSpire)
+   
 
 def unregister():
     # Note: when unregistering, it's usually good practice to do it in reverse order you registered.
     # Can avoid strange issues like keymap still referring to operators already unregistered...
     bpy.utils.unregister_class(PanelMain)
-    bpy.utils.unregister_class(PanelSpire)
+   
     # handle the keymap
     
     for km, kmi in addon_keymaps:
