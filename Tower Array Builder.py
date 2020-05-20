@@ -107,7 +107,7 @@ class PanelMain(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = "UI"
     bl_category = 'Tower Array'
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_options = {'DEFAULT_CLOSED'} 
     
     def draw(self, context):
         layout = self.layout
@@ -131,6 +131,7 @@ class PanelBase(bpy.types.Panel):
     bl_region_type = "UI"
     bl_category = 'Tower Array'
     bl_parent_id = 'PT_panelmain'
+    #bl_options = {'REGISTER', 'UNDO'} 
     
     def draw(self, context):
         layout = self.layout
@@ -145,7 +146,9 @@ class PanelBase(bpy.types.Panel):
         # display the properties
         layout.prop(mytool, "boxheight", text="height")
         layout.prop(mytool, "boxwidth", text="width")
+        layout.separator()
         row = layout.row()
+        
         row.label(text='Polygon Base Shape',icon = "SEQ_CHROMA_SCOPE")
         layout.prop(mytool, "N_sides", text="N polygon")
         layout.prop(mytool, "N_sides_used", text="nr of sides shown")
@@ -171,7 +174,7 @@ class PanelSpire(bpy.types.Panel):
     bl_region_type = "UI"
     bl_category = 'Tower Array'
     bl_parent_id = 'PT_panelmain'
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_options = {'DEFAULT_CLOSED'} 
     
     def draw(self, context):
         layout = self.layout
@@ -194,6 +197,7 @@ class PanelFinal(bpy.types.Panel):
     bl_region_type = "UI"
     bl_category = 'Tower Array'
     bl_parent_id = 'PT_panelmain'
+    #bl_options = {'REGISTER', 'UNDO'} 
     
     def draw(self, context):
         layout = self.layout
@@ -325,11 +329,19 @@ class ObjectCursorArray(bpy.types.Operator):
 
     def execute(self, context):
         
-        print(self.MySettings.get())
+        #print(bpy.types.Scene.my_tool.boxwidth)
         
-        if self.N_sides_used > self.N_sides:
-            self.N_sides_used = self.N_sides
+        #if self.N_sides_used > self.N_sides:
+        #    self.N_sides_used = self.N_sides
         scene = context.scene
+        var = scene.my_vars
+        # Get all variables
+        try:
+            print(f"var = {var.boxheight} and {var.boxwidth}")
+        except:
+            pass
+            print("error")
+        
         cursor = scene.cursor.location
         cursor_org = cursor
         object_beam = context.active_object
@@ -344,7 +356,6 @@ class ObjectCursorArray(bpy.types.Operator):
         matcolor2 = (0,1,0,1)
         matcolor3 = (0,0,1,1)
         
-
         
         all_single_users(scene)
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True) 
@@ -358,10 +369,10 @@ class ObjectCursorArray(bpy.types.Operator):
         select_obj(boxcube)
         bpy.ops.object.modifier_add(type='WIREFRAME') 
         bpy.data.objects[boxcube.name].modifiers["Wireframe"].thickness = 0.06
-        w = self.boxwidth/boxcube.dimensions[0]
-        h = self.boxheight/boxcube.dimensions[2]
+        w = var.boxwidth/boxcube.dimensions[0]
+        h = var.boxheight/boxcube.dimensions[2]
         boxcube.scale = (2*w,2*w,2*h)
-        
+
 
         
         #copy object mesh (unlinked)
@@ -374,7 +385,7 @@ class ObjectCursorArray(bpy.types.Operator):
         #resize the beam if it is too large:
         x,y,z = obj_topbar.dimensions
         print(f"size is {x,y,z}") 
-        beamsize = min(self.boxwidth,self.boxheight)*self.beampercent
+        beamsize = min(var.boxwidth,var.boxheight)*var.beampercent
         if x > y: #rotate the original beam correctly
             obj_topbar.rotation_euler = (0,0,radians(90))
         all_single_users(scene)
@@ -383,41 +394,42 @@ class ObjectCursorArray(bpy.types.Operator):
             
             f = beamsize/max(x,y)
             print(f"is too large {f,max(x,y),beamsize}")
-            obj_topbar.scale = (f,self.boxwidth/y-f,f) 
+            obj_topbar.scale = (f,var.boxwidth/y-f,f) 
             barscale = f
             bpy.ops.object.transform_apply(location=False, rotation=True, scale=True) 
         else:
             f = beamsize
         print(f"newsize is {obj_topbar.dimensions}") 
+
 #                       
         all_single_users(scene)
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True) 
 
         deselect_all(scene)
         # Determine how much the diagonal beam need to be slanted
-        angle = atan(self.boxheight/self.boxwidth) 
-        diagonallength = sqrt(self.boxheight**2+self.boxwidth**2)/2*self.diagonalpercent
+        angle = atan(var.boxheight/var.boxwidth) 
+        diagonallength = sqrt(var.boxheight**2+var.boxwidth**2)/2*var.diagonalpercent
         # Determine the center of the scene
-        EmptyCenter = create_empty(name = 'EmptyCenter',size = max(self.boxwidth,self.boxheight)*1.5,location =  cursor,colname = TowerCol)
+        EmptyCenter = create_empty(name = 'EmptyCenter',size = max(var.boxwidth,var.boxheight)*1.5,location =  cursor,colname = TowerCol)
         xm,ym,zm = cursor #middle of box
         # point vectors to where the beams should be placed
         Vector = mathutils.Vector
         
         
         
-        vec_centertop = Vector((self.boxwidth/2, 0, self.boxheight/2)) + cursor
-        vec_corner = Vector((self.boxwidth/2, self.boxwidth/2, self.boxheight/2)) + cursor
-        vec_side = Vector((self.boxwidth/2, self.boxwidth/2, 0)) + cursor
+        vec_centertop = Vector((var.boxwidth/2, 0, var.boxheight/2)) + cursor
+        vec_corner = Vector((var.boxwidth/2, var.boxwidth/2, var.boxheight/2)) + cursor
+        vec_side = Vector((var.boxwidth/2, var.boxwidth/2, 0)) + cursor
         # Create extra Empties
-        EmptyCorner   = create_empty(name = 'EmptyCorner',size = max(self.boxwidth,self.boxheight)/4,location =  vec_corner,colname = TowerCol)        
-        EmptyFront    = create_empty(name = 'EmptyFront',size = max(self.boxwidth,self.boxheight)/4,location =  cursor + Vector((self.boxwidth/2,0,0)),colname = TowerCol)                
-        EmptyDiagonal = create_empty(name = 'EmptyDiagonal',size = max(self.boxwidth,self.boxheight)/4,location =  cursor + Vector((self.boxwidth/2,0,0)),colname = TowerCol)                        
+        EmptyCorner   = create_empty(name = 'EmptyCorner',size = max(var.boxwidth,var.boxheight)/4,location =  vec_corner,colname = TowerCol)        
+        EmptyFront    = create_empty(name = 'EmptyFront',size = max(var.boxwidth,var.boxheight)/4,location =  cursor + Vector((var.boxwidth/2,0,0)),colname = TowerCol)                
+        EmptyDiagonal = create_empty(name = 'EmptyDiagonal',size = max(var.boxwidth,var.boxheight)/4,location =  cursor + Vector((var.boxwidth/2,0,0)),colname = TowerCol)                        
         # to avoid having to rotate the beam at the eind points: it's easier to use an extra empty and scale/rotate the object around the center
-        p = self.diagonalpercent
+        p = var.diagonalpercent
         EmptyDiagonal.location = (EmptyFront.location*p + EmptyCorner.location*(2-p))/2
      
         
-        
+    
                 
 
         #obj_topbar = bpy.data.objects.new('Topbar',beam_ob.data)        
@@ -453,7 +465,8 @@ class ObjectCursorArray(bpy.types.Operator):
         print(f" scale = {obj_sidebar.scale}")
 
         x,y,z = obj_sidebar.dimensions
-        obj_sidebar.scale = (1,1,self.boxheight/z+2*f/z) 
+        obj_sidebar.scale = (1,1,var.boxheight/z+2*f/z) 
+        
 
         
 
@@ -465,7 +478,7 @@ class ObjectCursorArray(bpy.types.Operator):
 
         obj_diagonalbar = unlinkedcopy(obj_topbar)
         fr = diagonallength/obj_diagonalbar.dimensions[1]
-        obj_diagonalbar.scale = (self.diagonalxy,fr,self.diagonalxy)
+        obj_diagonalbar.scale = (var.diagonalxy,fr,var.diagonalxy)
         obj_diagonalbar.rotation_euler = (angle,0,0)
         obj_diagonalbar.name = 'Diagonalbar' 
         assignmaterial(obj_diagonalbar,matcolor3)
@@ -493,14 +506,14 @@ class ObjectCursorArray(bpy.types.Operator):
             #xc,yc,zc = frontplatecorner - EmptyFront.location
             
             #width = 2*abs(EmptyFront.location[1]-(EmptyCorner.location[1]-2*EmptyDiagonal.location[1]))
-            width = (EmptyDiagonal.location-EmptyFront.location)[1]/2*self.platesize
+            width = (EmptyDiagonal.location-EmptyFront.location)[1]/2*var.platesize
             #height = 2*abs(EmptyFront.location[2]-(EmptyCorner.location[2]-2*EmptyDiagonal.location[2]))
-            height = (EmptyDiagonal.location-EmptyFront.location)[2]/2*self.platesize
+            height = (EmptyDiagonal.location-EmptyFront.location)[2]/2*var.platesize
 
             xf,yf,zf = frontplate.dimensions
             xd = obj_diagonalbar.dimensions[0]
-            sx = xd*self.platethickness/xf
-            sy = width*self.platesize/yf
+            sx = xd*var.platethickness/xf
+            sy = width*var.platesize/yf
             sz = height/zf
             print(f"height = {height},\n width = {width},\n sz = {sz},\n zf = {zf},\n sz = {sz}")
             frontplate.scale = (sx,width,height)
@@ -513,20 +526,22 @@ class ObjectCursorArray(bpy.types.Operator):
        
         #add instancing plane
         EmptyBottom   = create_empty(name = 'EmptyBottom',size = 1,colname = TowerCol)
-        EmptyBottom.location = Vector((self.boxwidth/2,0,-self.boxheight/2-f)) + cursor 
+        EmptyBottom.location = Vector((var.boxwidth/2,0,-var.boxheight/2-f)) + cursor 
 
         
         
         # Create extra Empties
-        EmptyTop   = create_empty(name = 'EmptyTop',size = max(self.boxwidth,self.boxheight)/4,colname = TowerCol)
-        EmptyTop.location = Vector((self.boxwidth/2,0,self.boxheight/2+f))  + cursor      
+        EmptyTop   = create_empty(name = 'EmptyTop',size = max(var.boxwidth,var.boxheight)/4,colname = TowerCol)
+        EmptyTop.location = Vector((var.boxwidth/2,0,var.boxheight/2+f))  + cursor      
 #        scene.collection.objects.link(EmptyTop) 
         
         #determine polygon's next center of the edge.
+
         """If you place an empty at the next edge center of a polygon , then an array with N numbers will finish the polygon"""
-        n = self.N_sides
+
+        n = var.N_sides
         Ngon_angle = (n - 2)*pi/n
-        length = self.boxwidth/2
+        length = var.boxwidth/2
         x1,y1,z1 = EmptyCorner.location
         x2,y2,z2 = EmptyBottom.location
         xx = length*sin(pi-Ngon_angle)
@@ -539,23 +554,23 @@ class ObjectCursorArray(bpy.types.Operator):
         bpy.ops.view3d.snap_cursor_to_active()
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
         
+      
         
         
         
         
-        
-        DRAW_SPIRE = True
-        if DRAW_SPIRE:
+        var.DRAW_SPIRE = True
+        if var.DRAW_SPIRE:
             #distance from center of topbar to center of the polygon
-            pos_x = EmptyTop.location[0] - (self.boxwidth/2) * tan(Ngon_angle/2) 
+            pos_x = EmptyTop.location[0] - (var.boxwidth/2) * tan(Ngon_angle/2) 
             pos_y = EmptyTop.location[1]
-            pos_z = EmptyTop.location[2] + (self.boxheight) * (self.z_array)
+            pos_z = EmptyTop.location[2] + (var.boxheight) * (var.z_array)
             
             EmptySpire   = create_empty(name = 'EmptySpire',size = 1,colname = TowerCol)
             EmptySpire.location = Vector((pos_x,pos_y,pos_z))  
             x0,y0,z0 = EmptySpire.location
             x1,y1,_ = EmptyCorner.location
-            z1 = EmptyPolygon.location[2] + (EmptyTop.location[2]-EmptyPolygon.location[2])*self.z_array #exactly the highest point, accounts for width of beams
+            z1 = EmptyPolygon.location[2] + (EmptyTop.location[2]-EmptyPolygon.location[2])*var.z_array #exactly the highest point, accounts for width of beams
             
             EmptySpireHalf   = create_empty(name = 'EmptySpireHalf',size = 5,colname = TowerCol)
             EmptySpireHalf.location = Vector(((x0+x1)/2,(y0+y1)/2,(z0+z1)/2))  
@@ -574,18 +589,18 @@ class ObjectCursorArray(bpy.types.Operator):
             obj_spire.rotation_euler = (-z_angle,0,-Ngon_angle/2)
             movecollection(obj_spire,TowerCol)
             
-        if self.ASSIGN_MODS:
+        if var.ASSIGN_MODS:
             for object in TowerCol.objects:
                 if object.type != 'EMPTY' and boxcube.name != object.name:
                     select_obj(object)
                     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
                     bpy.ops.object.origin_set(type = 'ORIGIN_CURSOR')
-                    cylinderarray(object, EmptyPolygon, self.N_sides_used )
+                    cylinderarray(object, EmptyPolygon, var.N_sides_used )
                     if object != obj_spire:
-                        heightarray(object, EmptyTop, self.z_array)
+                        heightarray(object, EmptyTop, var.z_array)
                     
                     print(f'modifiers = {object.modifiers}')                    
-                    if self.APPLY_MODS:
+                    if var.APPLY_MODS:
                         #apply all modifiers of an object:
                         for mod in object.modifiers:
                             bpy.ops.object.modifier_apply(apply_as='DATA', modifier=mod.name)
@@ -598,7 +613,7 @@ class ObjectCursorArray(bpy.types.Operator):
         #restore 3D cursor
         select_obj(EmptyCenter)
         bpy.ops.view3d.snap_cursor_to_active()   
-        if self.DELETE_EMPTIES:#remove all empties
+        if var.DELETE_EMPTIES:#remove all empties
             for object in TowerCol.objects:
                 if object.type == 'EMPTY':
                     bpy.data.collections[TowerCol.name].objects.unlink(object)   
@@ -638,7 +653,7 @@ def register():
     """
     for cls in classes:
         bpy.utils.register_class(cls)        
-    bpy.types.Scene.my_tool = PointerProperty(type=MySettings)
+    bpy.types.Scene.my_vars = PointerProperty(type=MySettings)
 
    
 
@@ -655,7 +670,7 @@ def unregister():
 
     bpy.utils.unregister_class(ObjectCursorArray)
     bpy.types.VIEW3D_MT_object.remove(menu_func)
-    del bpy.types.Scene.my_tool
+    del bpy.types.Scene.my_vars
 
 if __name__ == "__main__":
     register()
