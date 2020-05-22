@@ -329,6 +329,7 @@ class ObjectTowerArray(bpy.types.Operator):
 
     def execute(self, context):
         
+        
         #print(bpy.types.Scene.my_vars.boxwidth)
         
         #if self.N_sides_used > self.N_sides:
@@ -617,9 +618,25 @@ class ObjectTowerArray(bpy.types.Operator):
             for object in TowerCol.objects:
                 if object.type == 'EMPTY':
                     bpy.data.collections[TowerCol.name].objects.unlink(object)   
+        #set original object back to active to redo the operations
+        select_obj(object_beam )
+        return {'RUNNING_MODAL'}
         
-                     
-        return {'FINISHED'}
+    def modal(self, context, event):
+        if event.type == 'MOUSEMOVE':  # Apply
+            self.x = event.mouse_x
+            self.y = event.mouse_y
+            self.execute(context)
+            return {'RUNNING_MODAL'}
+        elif event.type == 'LEFTMOUSE':  # Confirm
+            return {'RUNNING_MODAL' }
+        elif event.type in ('RIGHTMOUSE', 'ESC'):  # Cancel
+            return {'CANCELLED'}
+
+        return {'RUNNING_MODAL'}
+        
+                 
+
 
 
 def menu_func(self, context):
