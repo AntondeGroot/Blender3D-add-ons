@@ -137,7 +137,7 @@ class PanelBase(bpy.types.Panel):
         layout = self.layout
         obj = context.object
         scene = context.scene
-        mytool = scene.my_tool
+        mytool = scene.my_vars
         
         row = layout.row()
         row.label(text='Box',icon = "SNAP_VOLUME")
@@ -180,7 +180,7 @@ class PanelSpire(bpy.types.Panel):
         layout = self.layout
         obj = context.object
         scene = context.scene
-        mytool = scene.my_tool
+        mytool = scene.my_vars
         
         row = layout.row()
         
@@ -203,7 +203,7 @@ class PanelFinal(bpy.types.Panel):
         layout = self.layout
         obj = context.object
         scene = context.scene
-        mytool = scene.my_tool      
+        mytool = scene.my_vars      
         row = layout.row()
         layout.prop(mytool, "ASSIGN_MODS", text="assign modifiers")
         layout.prop(mytool, "APPLY_MODS", text="apply the modifiers")
@@ -307,7 +307,7 @@ def movecollection(object,new_col):
     except:
         pass        
            
-class ObjectCursorArray(bpy.types.Operator):
+class ObjectTowerArray(bpy.types.Operator):
     """Create a Transmission Tower"""
     bl_idname = "object.tower_array"
     bl_label = "Tower Array"
@@ -329,7 +329,7 @@ class ObjectCursorArray(bpy.types.Operator):
 
     def execute(self, context):
         
-        #print(bpy.types.Scene.my_tool.boxwidth)
+        #print(bpy.types.Scene.my_vars.boxwidth)
         
         #if self.N_sides_used > self.N_sides:
         #    self.N_sides_used = self.N_sides
@@ -623,7 +623,7 @@ class ObjectCursorArray(bpy.types.Operator):
 
 
 def menu_func(self, context):
-    self.layout.operator(ObjectCursorArray.bl_idname)
+    self.layout.operator(ObjectTowerArray.bl_idname)
 
 # store keymaps here to access after registration
 addon_keymaps = []
@@ -633,24 +633,12 @@ classes = (
     PanelMain,
     PanelBase,
     PanelSpire,
-    PanelFinal)
+    PanelFinal,
+    ObjectTowerArray)
     
 def register():
-    bpy.utils.register_class(ObjectCursorArray)
     bpy.types.VIEW3D_MT_object.append(menu_func)
-
-    # handle the keymap
-    wm = bpy.context.window_manager
-    # Note that in background mode (no GUI available), keyconfigs are not available either,
-    # so we have to check this to avoid nasty errors in background case.
-    kc = wm.keyconfigs.addon
-    """
-    if kc:
-        km = wm.keyconfigs.addon.keymaps.new(name='Object Mode', space_type='EMPTY')
-        kmi = km.keymap_items.new(ObjectCursorArray.bl_idname, 'T', 'PRESS', ctrl=True, shift=True)
-        kmi.properties.boxheight = 3
-        addon_keymaps.append((km, kmi))
-    """
+    
     for cls in classes:
         bpy.utils.register_class(cls)        
     bpy.types.Scene.my_vars = PointerProperty(type=MySettings)
@@ -660,17 +648,13 @@ def register():
 def unregister():
     # Note: when unregistering, it's usually good practice to do it in reverse order you registered.
     # Can avoid strange issues like keymap still referring to operators already unregistered...
-    bpy.utils.unregister_class(PanelMain)
-   
-    # handle the keymap
-    
-    for km, kmi in addon_keymaps:
-        km.keymap_items.remove(kmi)
-    addon_keymaps.clear()
-
-    bpy.utils.unregister_class(ObjectCursorArray)
-    bpy.types.VIEW3D_MT_object.remove(menu_func)
     del bpy.types.Scene.my_vars
+    
+    for cls in classes.reversed():
+        bpy.utils.register_class(cls)   
+
+    bpy.types.VIEW3D_MT_object.remove(menu_func)
+    
 
 if __name__ == "__main__":
     register()
