@@ -226,7 +226,6 @@ def assignmaterial(object,RGBA_color):
     if mat is None:
         # create material
         mat = bpy.data.materials.new(name="Material")
-
     # Assign it to object
     if object.data.materials:
         # assign to 1st material slot
@@ -555,13 +554,7 @@ class ObjectTowerArray(bpy.types.Operator):
         bpy.ops.view3d.snap_cursor_to_active()
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
         
-      
-        
-        
-        
-        
-        var.DRAW_SPIRE = True
-        if var.DRAW_SPIRE:
+        if var.spirebool:
             #distance from center of topbar to center of the polygon
             pos_x = EmptyTop.location[0] - (var.boxwidth/2) * tan(Ngon_angle/2) 
             pos_y = EmptyTop.location[1]
@@ -589,6 +582,8 @@ class ObjectTowerArray(bpy.types.Operator):
             obj_spire.scale = (barscale,yscale,barscale)
             obj_spire.rotation_euler = (-z_angle,0,-Ngon_angle/2)
             movecollection(obj_spire,TowerCol)
+        else:
+            obj_spire = None
             
         if var.ASSIGN_MODS:
             for object in TowerCol.objects:
@@ -620,7 +615,7 @@ class ObjectTowerArray(bpy.types.Operator):
                     bpy.data.collections[TowerCol.name].objects.unlink(object)   
         #set original object back to active to redo the operations
         select_obj(object_beam )
-        return {'RUNNING_MODAL'}
+        return {'FINISHED'}
         
     def modal(self, context, event):
         if event.type == 'MOUSEMOVE':  # Apply
