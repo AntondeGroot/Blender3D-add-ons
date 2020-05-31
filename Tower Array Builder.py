@@ -552,15 +552,36 @@ class ObjectTowerArray(bpy.types.Operator):
         #determine polygon's next center of the edge.
 
         """If you place an empty at the next edge center of a polygon , then an array with N numbers will finish the polygon"""
+        
+        if 0:
+            n = var.N_sides
+            Ngon_angle = (n - 2)*pi/n
+            length = var.boxwidth/2
+            x1,y1,z1 = EmptyCorner.location
+            x2,y2,z2 = EmptyBottom.location
+            xx = length*sin(pi-Ngon_angle)
+            yy = length*cos(pi-Ngon_angle)
+        else:
+            w = obj_sidebar.dimensions[0]/2            
+            n = var.N_sides
+            Ngon_angle = (n - 2)*pi/n
+            length = var.boxwidth/2
+            x1,y1,z1 = EmptyCorner.location
+            x2,y2,z2 = EmptyBottom.location
+            
+            xx = length*sin(pi-Ngon_angle)
+            yy = length*cos(pi-Ngon_angle)            
 
-        n = var.N_sides
-        Ngon_angle = (n - 2)*pi/n
-        length = var.boxwidth/2
-        x1,y1,z1 = EmptyCorner.location
-        x2,y2,z2 = EmptyBottom.location
-        xx = length*sin(pi-Ngon_angle)
-        yy = length*cos(pi-Ngon_angle)
-        emptypos = (x1-xx,y1+yy,z2)
+        if var.N_sides > 4:
+
+            
+            correction_angle = pi/2 - Ngon_angle
+            ycorrection = cos(correction_angle) * w
+            xcorrection = sin(correction_angle) * w
+            emptypos = (x1-xx+xcorrection,y1+yy+w/2,z2)
+            #emptypos = (x1-xx,y1+yy+w,z2)
+        else:
+            emptypos = (x1-xx,y1+yy,z2)
         EmptyPolygon   = create_empty(name = 'EmptyPolygon',size = 1,location =  emptypos,colname = TowerCol)        
         EmptyPolygon.rotation_euler = (0,0,3*pi-Ngon_angle)
 
