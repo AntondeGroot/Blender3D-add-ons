@@ -23,7 +23,36 @@ from bpy.types import (Panel,
                        AddonPreferences,
                        PropertyGroup,
                        )
-
+                       
+#=====================================================
+def remove_empties(collection = None):
+    try:
+        for object in TowerCol.objects:
+            if object.type == 'EMPTY':
+                bpy.data.collections[TowerCol.name].objects.unlink(object)   
+    except:
+        print("collection does not exist")
+#=====================================================
+def cube_base(variables = None, cursor = None):
+    var = variables 
+    if variables and cursor:
+        """Used to parent the whole structure to this cube, in order to move it around"""
+        bpy.ops.mesh.primitive_cube_add()
+        # newly created cube will be automatically selected    
+        boxcube = bpy.context.selected_objects[0]  
+        boxcube.location = cursor
+        movecollection(boxcube,TowerCol)
+        select_obj(boxcube)
+        bpy.ops.object.modifier_add(type='WIREFRAME') 
+        bpy.data.objects[boxcube.name].modifiers["Wireframe"].thickness = 0.06
+        w = var.boxwidth/boxcube.dimensions[0]
+        h = var.boxheight/boxcube.dimensions[2]
+        boxcube.scale = (2*w,2*w,2*h)
+        return boxcube
+    else:
+        print(f"failed to create box cube")
+        return None
+#=====================================================
 
 class MySettings(PropertyGroup):#https://blender.stackexchange.com/questions/35007/how-can-i-add-a-checkbox-in-the-tools-ui
         
@@ -327,24 +356,16 @@ class ObjectTowerArray(bpy.types.Operator):
         bpy.context.scene.collection.children.unlink(collection)
 
     def execute(self, context):
-        
-        
-        #print(bpy.types.Scene.my_vars.boxwidth)
-        
-        #if self.N_sides_used > self.N_sides:
-        #    self.N_sides_used = self.N_sides
         scene = context.scene
-        var = scene.my_vars
-        # Get all variables
-        try:
-            print(f"var = {var.boxheight} and {var.boxwidth}")
-        except:
-            pass
-            print("error")
+        var = scene.my_vars # Get all variables
         
         cursor = scene.cursor.location
         cursor_org = cursor
         object_beam = context.active_object
+
+        if object_beam == None: # No active object selected
+            return {'CANCELLED'}
+        
         bpy.ops.object.origin_set(type = 'ORIGIN_GEOMETRY')
         
         TowerCol = bpy.data.collections.new('TransmissionTower')
@@ -360,21 +381,13 @@ class ObjectTowerArray(bpy.types.Operator):
         all_single_users(scene)
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True) 
         
-        bpy.ops.mesh.primitive_cube_add()
-        # newly created cube will be automatically selected
-        boxcube = bpy.context.selected_objects[0]  
+        if True:
+            """to move the whole structure around 
+            is parented to this wireframe cube"""
+            boxcube = cube_base(variables = var)
         
-        boxcube.location = cursor
-        movecollection(boxcube,TowerCol)
-        select_obj(boxcube)
-        bpy.ops.object.modifier_add(type='WIREFRAME') 
-        bpy.data.objects[boxcube.name].modifiers["Wireframe"].thickness = 0.06
-        w = var.boxwidth/boxcube.dimensions[0]
-        h = var.boxheight/boxcube.dimensions[2]
-        boxcube.scale = (2*w,2*w,2*h)
 
-
-        
+                        
         #copy object mesh (unlinked)
         obj_topbar = unlinkedcopy(object_beam)
         obj_topbar.name = 'Topbar'
@@ -503,11 +516,10 @@ class ObjectTowerArray(bpy.types.Operator):
             frontplate.name = 'Frontplate'
             bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
             
-            #xc,yc,zc = frontplatecorner - EmptyFront.location
+            #if var.platebool:
+            #    var.platesize = 1
             
-            #width = 2*abs(EmptyFront.location[1]-(EmptyCorner.location[1]-2*EmptyDiagonal.location[1]))
             width = (EmptyDiagonal.location-EmptyFront.location)[1]/2*var.platesize
-            #height = 2*abs(EmptyFront.location[2]-(EmptyCorner.location[2]-2*EmptyDiagonal.location[2]))
             height = (EmptyDiagonal.location-EmptyFront.location)[2]/2*var.platesize
 
             xf,yf,zf = frontplate.dimensions
@@ -515,7 +527,7 @@ class ObjectTowerArray(bpy.types.Operator):
             sx = xd*var.platethickness/xf
             sy = width*var.platesize/yf
             sz = height/zf
-            print(f"height = {height},\n width = {width},\n sz = {sz},\n zf = {zf},\n sz = {sz}")
+            
             frontplate.scale = (sx,width,height)
             movecollection(frontplate,TowerCol)
             
@@ -587,7 +599,7 @@ class ObjectTowerArray(bpy.types.Operator):
             
         if var.ASSIGN_MODS:
             for object in TowerCol.objects:
-                if object.type != 'EMPTY' and boxcube.name != object.name:
+                if object.type != 'EMPTY' and object != boxcube:
                     select_obj(object)
                     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
                     bpy.ops.object.origin_set(type = 'ORIGIN_CURSOR')
@@ -609,27 +621,11 @@ class ObjectTowerArray(bpy.types.Operator):
         #restore 3D cursor
         select_obj(EmptyCenter)
         bpy.ops.view3d.snap_cursor_to_active()   
-        if var.DELETE_EMPTIES:#remove all empties
-            for object in TowerCol.objects:
-                if object.type == 'EMPTY':
-                    bpy.data.collections[TowerCol.name].objects.unlink(object)   
+        if var.DELETE_EMPTIES: #remove all empties
+            remove_empties(collection = TowerCol)
         #set original object back to active to redo the operations
         select_obj(object_beam )
         return {'FINISHED'}
-        
-    def modal(self, context, event):
-        if event.type == 'MOUSEMOVE':  # Apply
-            self.x = event.mouse_x
-            self.y = event.mouse_y
-            self.execute(context)
-            return {'RUNNING_MODAL'}
-        elif event.type == 'LEFTMOUSE':  # Confirm
-            return {'RUNNING_MODAL' }
-        elif event.type in ('RIGHTMOUSE', 'ESC'):  # Cancel
-            return {'CANCELLED'}
-
-        return {'RUNNING_MODAL'}
-        
                  
 
 
