@@ -33,15 +33,15 @@ def remove_empties(collection = None):
     except:
         print("collection does not exist")
 #=====================================================
-def cube_base(variables = None, cursor = None):
+def cube_base(variables = None, cursor = None, collection = None):
     var = variables 
-    if variables and cursor:
+    if variables and cursor and collection:
         """Used to parent the whole structure to this cube, in order to move it around"""
         bpy.ops.mesh.primitive_cube_add()
         # newly created cube will be automatically selected    
         boxcube = bpy.context.selected_objects[0]  
         boxcube.location = cursor
-        movecollection(boxcube,TowerCol)
+        movecollection(boxcube,collection)
         select_obj(boxcube)
         bpy.ops.object.modifier_add(type='WIREFRAME') 
         bpy.data.objects[boxcube.name].modifiers["Wireframe"].thickness = 0.06
@@ -150,7 +150,7 @@ class PanelMain(bpy.types.Panel):
         row.label(text='or a "+" Beam')
         row = layout.row()
         
-        layout.operator('object.tower_array', text = 'Simple Op')
+        layout.operator('object.tower_array', text = 'Build Tower')
 
 class PanelBase(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
@@ -313,12 +313,12 @@ def select_only_obj(object = None,scene = None):
     if object and scene:
         deselect_all(scene)
         bpy.data.objects[object.name].select_set(True)
+        
 def create_empty(name = 'empty object',size = 1,type = 'ARROWS',location =  mathutils.Vector((0,0,0)),colname = ''):
     Empty = None
     if colname:
         Empty = bpy.data.objects.new( name, None ) 
         bpy.data.collections[colname.name].objects.link(Empty)   
-        #bpy.context.scene.collection.objects.link( Empty )
         Empty.empty_display_size = size
         Empty.empty_display_type = type  
         Empty.location = location
@@ -384,7 +384,7 @@ class ObjectTowerArray(bpy.types.Operator):
         if True:
             """to move the whole structure around 
             is parented to this wireframe cube"""
-            boxcube = cube_base(variables = var)
+            boxcube = cube_base(variables = var, cursor = cursor, collection = TowerCol)
         
 
                         
@@ -516,8 +516,8 @@ class ObjectTowerArray(bpy.types.Operator):
             frontplate.name = 'Frontplate'
             bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
             
-            #if var.platebool:
-            #    var.platesize = 1
+            
+            
             
             width = (EmptyDiagonal.location-EmptyFront.location)[1]/2*var.platesize
             height = (EmptyDiagonal.location-EmptyFront.location)[2]/2*var.platesize
@@ -529,6 +529,8 @@ class ObjectTowerArray(bpy.types.Operator):
             sz = height/zf
             
             frontplate.scale = (sx,width,height)
+            if var.platebool:
+                frontplate.scale = (sx,var.boxwidth/2,var.boxheight/2) 
             movecollection(frontplate,TowerCol)
             
             
@@ -544,7 +546,7 @@ class ObjectTowerArray(bpy.types.Operator):
         
         # Create extra Empties
         EmptyTop   = create_empty(name = 'EmptyTop',size = max(var.boxwidth,var.boxheight)/4,colname = TowerCol)
-        EmptyTop.location = Vector((var.boxwidth/2,0,var.boxheight/2+f))  + cursor      
+        EmptyTop.location = Vector((var.boxwidth/2,0,var.boxheight/2-f))  + cursor      
 #        scene.collection.objects.link(EmptyTop) 
         
         #determine polygon's next center of the edge.
@@ -613,11 +615,12 @@ class ObjectTowerArray(bpy.types.Operator):
                         for mod in object.modifiers:
                             bpy.ops.object.modifier_apply(apply_as='DATA', modifier=mod.name)
             #PARENT TO CUBE
-            for object in TowerCol.objects:
-                if object.type == 'EMPTY' or object.type == 'MESH' and object != boxcube:
-                    select_obj(object)
-                    object.parent = boxcube
-                    object.matrix_parent_inverse = boxcube.matrix_world.inverted()
+            if boxcube:
+                for object in TowerCol.objects:
+                    if  object.type == 'EMPTY' or object.type == 'MESH' and object != boxcube:
+                        select_obj(object)
+                        object.parent = boxcube
+                        object.matrix_parent_inverse = boxcube.matrix_world.inverted()
         #restore 3D cursor
         select_obj(EmptyCenter)
         bpy.ops.view3d.snap_cursor_to_active()   
