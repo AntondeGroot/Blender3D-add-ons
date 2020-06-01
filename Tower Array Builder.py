@@ -23,7 +23,7 @@ from bpy.types import (Panel,
                        AddonPreferences,
                        PropertyGroup,
                        )
-                       
+Vector = mathutils.Vector                  
 #=====================================================
 def remove_empties(collection = None):
     try:
@@ -53,6 +53,18 @@ def cube_base(variables = None, cursor = None, collection = None):
         print(f"failed to create box cube")
         return None
 #=====================================================
+def add_mirror_modifier(object = None,center = None, x = False,y = False,z = False):
+    name = "MX"*x + "MY"*y + "MZ"*z
+    name.replace(" ", "")
+        
+    if object and center:
+        select_obj(object)
+        bpy.ops.object.modifier_add(type='MIRROR')
+        bpy.data.objects[object.name].modifiers["Mirror"].use_axis = (x, y, z)
+        bpy.data.objects[object.name].modifiers["Mirror"].mirror_object = center
+        bpy.data.objects[object.name].modifiers["Mirror"].name = name
+#=====================================================
+
 
 class MySettings(PropertyGroup):#https://blender.stackexchange.com/questions/35007/how-can-i-add-a-checkbox-in-the-tools-ui
         
@@ -361,9 +373,8 @@ class ObjectTowerArray(bpy.types.Operator):
         
         cursor = scene.cursor.location
         cursor_org = cursor
-        object_beam = context.active_object
-
-        if object_beam == None: # No active object selected
+        active_object = context.active_object
+        if not active_object: 
             return {'CANCELLED'}
         
         bpy.ops.object.origin_set(type = 'ORIGIN_GEOMETRY')
@@ -384,77 +395,61 @@ class ObjectTowerArray(bpy.types.Operator):
         if True:
             """to move the whole structure around 
             is parented to this wireframe cube"""
-            boxcube = cube_base(variables = var, cursor = cursor, collection = TowerCol)
+            boxcube = cube_base(variables = var, cursor = cursor, collection = TowerCol)            
+        if True: #create topbar
+            obj_topbar = unlinkedcopy(active_object)
+            obj_topbar.name = 'Topbar'
+            bpy.data.collections[TowerCol.name].objects.link(obj_topbar)   
         
+        if True: #resize topbar if too large:
+            x,y,z = obj_topbar.dimensions
+            print(f"size is {x,y,z}") 
+            beamsize = min(var.boxwidth,var.boxheight)*var.beampercent
+            if x > y: #rotate the original beam correctly
+                obj_topbar.rotation_euler = (0,0,radians(90))
+            all_single_users(scene)
+            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)        
+            if x > beamsize:
+                f = beamsize/max(x,y)
+                obj_topbar.scale = (f,var.boxwidth/y-f,f) 
+                barscale = f
+                bpy.ops.object.transform_apply(location=False, rotation=True, scale=True) 
+            else:
+                f = beamsize
 
-                        
-        #copy object mesh (unlinked)
-        obj_topbar = unlinkedcopy(object_beam)
-        obj_topbar.name = 'Topbar'
-        
-        
-        
-        
-        #resize the beam if it is too large:
-        x,y,z = obj_topbar.dimensions
-        print(f"size is {x,y,z}") 
-        beamsize = min(var.boxwidth,var.boxheight)*var.beampercent
-        if x > y: #rotate the original beam correctly
-            obj_topbar.rotation_euler = (0,0,radians(90))
-        all_single_users(scene)
-        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)        
-        if x > beamsize:
-            
-            f = beamsize/max(x,y)
-            print(f"is too large {f,max(x,y),beamsize}")
-            obj_topbar.scale = (f,var.boxwidth/y-f,f) 
-            barscale = f
-            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True) 
-        else:
-            f = beamsize
-        print(f"newsize is {obj_topbar.dimensions}") 
-
-#                       
+                       
         all_single_users(scene)
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True) 
-
         deselect_all(scene)
-        # Determine how much the diagonal beam need to be slanted
-        angle = atan(var.boxheight/var.boxwidth) 
-        diagonallength = sqrt(var.boxheight**2+var.boxwidth**2)/2*var.diagonalpercent
-        # Determine the center of the scene
-        EmptyCenter = create_empty(name = 'EmptyCenter',size = max(var.boxwidth,var.boxheight)*1.5,location =  cursor,colname = TowerCol)
-        xm,ym,zm = cursor #middle of box
-        # point vectors to where the beams should be placed
-        Vector = mathutils.Vector
         
+        if True: # Determine angle and length of diagonal beam
+            angle = atan(var.boxheight/var.boxwidth) 
+            diagonallength = sqrt(var.boxheight**2+var.boxwidth**2)/2*var.diagonalpercent
+            
+        if True: # Determine the center of the scene
+            EmptyCenter = create_empty(name = 'EmptyCenter',size = max(var.boxwidth,var.boxheight)*1.5,location =  cursor,colname = TowerCol)
         
+        if True: # point vectors to where the beams should be placed        
+            vec_centertop = Vector((var.boxwidth/2, 0, var.boxheight/2)) + cursor
+            vec_corner = Vector((var.boxwidth/2, var.boxwidth/2, var.boxheight/2)) + cursor
+            vec_side = Vector((var.boxwidth/2, var.boxwidth/2, 0)) + cursor
         
-        vec_centertop = Vector((var.boxwidth/2, 0, var.boxheight/2)) + cursor
-        vec_corner = Vector((var.boxwidth/2, var.boxwidth/2, var.boxheight/2)) + cursor
-        vec_side = Vector((var.boxwidth/2, var.boxwidth/2, 0)) + cursor
-        # Create extra Empties
-        EmptyCorner   = create_empty(name = 'EmptyCorner',size = max(var.boxwidth,var.boxheight)/4,location =  vec_corner,colname = TowerCol)        
-        EmptyFront    = create_empty(name = 'EmptyFront',size = max(var.boxwidth,var.boxheight)/4,location =  cursor + Vector((var.boxwidth/2,0,0)),colname = TowerCol)                
-        EmptyDiagonal = create_empty(name = 'EmptyDiagonal',size = max(var.boxwidth,var.boxheight)/4,location =  cursor + Vector((var.boxwidth/2,0,0)),colname = TowerCol)                        
-        # to avoid having to rotate the beam at the eind points: it's easier to use an extra empty and scale/rotate the object around the center
-        p = var.diagonalpercent
-        EmptyDiagonal.location = (EmptyFront.location*p + EmptyCorner.location*(2-p))/2
-     
+        if True:
+            # Create extra Empties
+            EmptyCorner   = create_empty(name = 'EmptyCorner',size = max(var.boxwidth,var.boxheight)/4,location =  vec_corner,colname = TowerCol)        
+            EmptyFront    = create_empty(name = 'EmptyFront',size = max(var.boxwidth,var.boxheight)/4,location =  cursor + Vector((var.boxwidth/2,0,0)),colname = TowerCol)                
+            EmptyDiagonal = create_empty(name = 'EmptyDiagonal',size = max(var.boxwidth,var.boxheight)/4,location =  cursor + Vector((var.boxwidth/2,0,0)),colname = TowerCol)                        
+            # to avoid having to rotate the beam at the eind points: it's easier to use an extra empty and scale/rotate the object around the center
+            p = var.diagonalpercent
+            EmptyDiagonal.location = (EmptyFront.location*p + EmptyCorner.location*(2-p))/2
         
-    
-                
-
-        #obj_topbar = bpy.data.objects.new('Topbar',beam_ob.data)        
-        #scene.collection.objects.link(obj_topbar)     
-        bpy.data.collections[TowerCol.name].objects.link(obj_topbar)   
+           
+        
         all_single_users(scene)
         obj_topbar.location = vec_centertop
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)   
-        select_obj(obj_topbar)
-        bpy.ops.object.modifier_add(type='MIRROR')
-        bpy.data.objects[obj_topbar.name].modifiers["Mirror"].use_axis = (False, False, True)
-        bpy.data.objects[obj_topbar.name].modifiers["Mirror"].mirror_object = EmptyCenter
+        add_mirror_modifier(object = obj_topbar,center = EmptyCenter,z = True)
+
         
         
                     
@@ -484,10 +479,8 @@ class ObjectTowerArray(bpy.types.Operator):
         
 
         all_single_users(scene)
-        select_obj(obj_sidebar)
-        bpy.ops.object.modifier_add(type='MIRROR')
-        bpy.data.objects[obj_sidebar.name].modifiers["Mirror"].use_axis = (False, True, False)
-        bpy.data.objects[obj_sidebar.name].modifiers["Mirror"].mirror_object = EmptyCenter
+        
+        add_mirror_modifier(object = obj_sidebar,center = EmptyCenter, y = True)
 
         obj_diagonalbar = unlinkedcopy(obj_topbar)
         fr = diagonallength/obj_diagonalbar.dimensions[1]
@@ -499,14 +492,8 @@ class ObjectTowerArray(bpy.types.Operator):
         #scene.collection.objects.link(obj_diagonalbar)
         bpy.data.collections[TowerCol.name].objects.link(obj_diagonalbar)   
         obj_diagonalbar.location =   EmptyDiagonal.location   
-        
-                
-        select_obj(obj_diagonalbar)
-        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-        bpy.ops.object.modifier_add(type='MIRROR')
-        bpy.data.objects[obj_diagonalbar.name].modifiers["Mirror"].use_axis = (False, True, True)
-        bpy.data.objects[obj_diagonalbar.name].modifiers["Mirror"].mirror_object = EmptyCenter
-        #scene.collection.objects.link(obj_diagonal1)
+        add_mirror_modifier(object = obj_diagonalbar,center = EmptyCenter,y = True, z=True)
+        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)        
         
         #make a plate
         if True:
@@ -515,9 +502,6 @@ class ObjectTowerArray(bpy.types.Operator):
             frontplate.location = EmptyFront.location
             frontplate.name = 'Frontplate'
             bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-            
-            
-            
             
             width = (EmptyDiagonal.location-EmptyFront.location)[1]/2*var.platesize
             height = (EmptyDiagonal.location-EmptyFront.location)[2]/2*var.platesize
@@ -538,13 +522,10 @@ class ObjectTowerArray(bpy.types.Operator):
 
         
        
-        #add instancing plane
-        EmptyBottom   = create_empty(name = 'EmptyBottom',size = 1,colname = TowerCol)
-        EmptyBottom.location = Vector((var.boxwidth/2,0,-var.boxheight/2-f)) + cursor 
-
-        
-        
         # Create extra Empties
+        EmptyBottom   = create_empty(name = 'EmptyBottom',size = 1,colname = TowerCol)
+        EmptyBottom.location = Vector((var.boxwidth/2,0,-var.boxheight/2-f)) + cursor         
+        # 
         EmptyTop   = create_empty(name = 'EmptyTop',size = max(var.boxwidth,var.boxheight)/4,colname = TowerCol)
         EmptyTop.location = Vector((var.boxwidth/2,0,var.boxheight/2-f))  + cursor      
 #        scene.collection.objects.link(EmptyTop) 
@@ -552,35 +533,21 @@ class ObjectTowerArray(bpy.types.Operator):
         #determine polygon's next center of the edge.
 
         """If you place an empty at the next edge center of a polygon , then an array with N numbers will finish the polygon"""
-        
-        if 0:
+        beamw = obj_sidebar.dimensions[0]/2
+        EmptyTop.location[0] = EmptyTop.location[0] + beamw
+        EmptyBottom.location[0] = EmptyBottom.location[0] + beamw
+        EmptyCorner.location[0] = EmptyCorner.location[0] + beamw
+        EmptyCorner.location[1] = EmptyCorner.location[1] + beamw
+        if True:
             n = var.N_sides
             Ngon_angle = (n - 2)*pi/n
             length = var.boxwidth/2
             x1,y1,z1 = EmptyCorner.location
             x2,y2,z2 = EmptyBottom.location
             xx = length*sin(pi-Ngon_angle)
-            yy = length*cos(pi-Ngon_angle)
-        else:
-            w = obj_sidebar.dimensions[0]/2            
-            n = var.N_sides
-            Ngon_angle = (n - 2)*pi/n
-            length = var.boxwidth/2
-            x1,y1,z1 = EmptyCorner.location
-            x2,y2,z2 = EmptyBottom.location
-            
-            xx = length*sin(pi-Ngon_angle)
-            yy = length*cos(pi-Ngon_angle)            
+            yy = length*cos(pi-Ngon_angle)      
 
-        if var.N_sides > 4:
-
-            
-            correction_angle = pi/2 - Ngon_angle
-            ycorrection = cos(correction_angle) * w
-            xcorrection = sin(correction_angle) * w
-            emptypos = (x1-xx+xcorrection,y1+yy+w/2,z2)
-            #emptypos = (x1-xx,y1+yy+w,z2)
-        else:
+        if True:
             emptypos = (x1-xx,y1+yy,z2)
         EmptyPolygon   = create_empty(name = 'EmptyPolygon',size = 1,location =  emptypos,colname = TowerCol)        
         EmptyPolygon.rotation_euler = (0,0,3*pi-Ngon_angle)
@@ -604,7 +571,7 @@ class ObjectTowerArray(bpy.types.Operator):
             EmptySpireHalf   = create_empty(name = 'EmptySpireHalf',size = 5,colname = TowerCol)
             EmptySpireHalf.location = Vector(((x0+x1)/2,(y0+y1)/2,(z0+z1)/2))  
             
-            obj_spire = unlinkedcopy(object_beam)
+            obj_spire = unlinkedcopy(active_object)
             obj_spire.name = 'SpireBar'
             obj_spire.location = EmptySpireHalf.location
             scene.collection.objects.link(obj_spire)     
@@ -627,10 +594,10 @@ class ObjectTowerArray(bpy.types.Operator):
                     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
                     bpy.ops.object.origin_set(type = 'ORIGIN_CURSOR')
                     cylinderarray(object, EmptyPolygon, var.N_sides_used )
+                    
                     if object != obj_spire:
                         heightarray(object, EmptyTop, var.z_array)
-                    
-                    print(f'modifiers = {object.modifiers}')                    
+              
                     if var.APPLY_MODS:
                         #apply all modifiers of an object:
                         for mod in object.modifiers:
@@ -648,7 +615,7 @@ class ObjectTowerArray(bpy.types.Operator):
         if var.DELETE_EMPTIES: #remove all empties
             remove_empties(collection = TowerCol)
         #set original object back to active to redo the operations
-        select_obj(object_beam )
+        select_obj(active_object )
         return {'FINISHED'}
                  
 
