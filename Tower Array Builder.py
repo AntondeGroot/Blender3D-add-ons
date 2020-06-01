@@ -459,8 +459,12 @@ class ObjectTowerArray(bpy.types.Operator):
         
         all_single_users(scene)
         obj_topbar.location = vec_centertop
-        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)   
-        add_mirror_modifier(object = obj_topbar,center = EmptyCenter,z = True)
+        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True) 
+        
+        
+        
+          
+        
 
         
         
@@ -487,12 +491,11 @@ class ObjectTowerArray(bpy.types.Operator):
         x,y,z = obj_sidebar.dimensions
         obj_sidebar.scale = (1,1,var.boxheight/z+2*f/z) 
         
-
-        
+        sidebarwidth = obj_sidebar.dimensions[0]/2
+       
+                
 
         all_single_users(scene)
-        
-        add_mirror_modifier(object = obj_sidebar,center = EmptyCenter, y = True)
 
         obj_diagonalbar = unlinkedcopy(obj_topbar)
         fr = diagonallength/obj_diagonalbar.dimensions[1]
@@ -504,9 +507,15 @@ class ObjectTowerArray(bpy.types.Operator):
         #scene.collection.objects.link(obj_diagonalbar)
         bpy.data.collections[TowerCol.name].objects.link(obj_diagonalbar)   
         obj_diagonalbar.location =   EmptyDiagonal.location   
-        add_mirror_modifier(object = obj_diagonalbar,center = EmptyCenter,y = True, z=True)
+        
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)        
         
+        if True:
+            # add mirror modifiers
+            add_mirror_modifier(object = obj_topbar,center = EmptyCenter,z = True)
+            add_mirror_modifier(object = obj_sidebar,center = EmptyCenter, y = True)
+            add_mirror_modifier(object = obj_diagonalbar,center = EmptyCenter,y = True, z=True)
+                
         #make a plate
         if True:
             bpy.ops.mesh.primitive_cube_add()
@@ -540,7 +549,6 @@ class ObjectTowerArray(bpy.types.Operator):
         # 
         EmptyTop   = create_empty(name = 'EmptyTop',size = max(var.boxwidth,var.boxheight)/4,colname = TowerCol)
         EmptyTop.location = Vector((var.boxwidth/2,0,var.boxheight/2-f))  + cursor      
-#        scene.collection.objects.link(EmptyTop) 
         
         #determine polygon's next center of the edge.
 
@@ -553,7 +561,9 @@ class ObjectTowerArray(bpy.types.Operator):
         if True:
             n = var.N_sides
             Ngon_angle = (n - 2)*pi/n
-            length = var.boxwidth/2
+            length = var.boxwidth/2+sidebarwidth
+            
+            
             x1,y1,z1 = EmptyCorner.location
             x2,y2,z2 = EmptyBottom.location
             xx = length*sin(pi-Ngon_angle)
@@ -621,6 +631,7 @@ class ObjectTowerArray(bpy.types.Operator):
                         select_obj(object)
                         object.parent = boxcube
                         object.matrix_parent_inverse = boxcube.matrix_world.inverted()
+        
         #restore 3D cursor
         select_obj(EmptyCenter)
         bpy.ops.view3d.snap_cursor_to_active()   
