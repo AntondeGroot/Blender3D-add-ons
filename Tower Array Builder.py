@@ -27,12 +27,29 @@ Vector = mathutils.Vector
 #=====================================================
 def remove_empties(collection = None):
     try:
-        for object in TowerCol.objects:
+        for object in collection.objects:
             if object.type == 'EMPTY':
-                bpy.data.collections[TowerCol.name].objects.unlink(object)   
+                bpy.data.collections[collection.name].objects.unlink(object)   
     except:
         print("collection does not exist")
 #=====================================================
+def remove_orphaned_data():
+    #remove orphaned collections
+    for c in bpy.data.collections:
+        if not c.users:
+            bpy.data.collections.remove(c)
+    for m in bpy.data.meshes:
+        if not m.users:
+            bpy.data.meshes.remove(m)
+    for o in bpy.data.objects:
+        if not o.users:
+            bpy.data.objects.remove(o)
+    for mat in bpy.data.materials:
+        if not mat.users:
+            bpy.data.materials.remove(mat)
+            
+#=====================================================
+
 def cube_base(variables = None, cursor = None, collection = None):
     var = variables 
     if variables and cursor and collection:
@@ -41,7 +58,8 @@ def cube_base(variables = None, cursor = None, collection = None):
         # newly created cube will be automatically selected    
         boxcube = bpy.context.selected_objects[0]  
         boxcube.location = cursor
-        movecollection(boxcube,collection)
+        #movecollection(boxcube,collection)
+        bpy.data.collections[collection.name].objects.link(boxcube)  
         select_obj(boxcube)
         bpy.ops.object.modifier_add(type='WIREFRAME') 
         bpy.data.objects[boxcube.name].modifiers["Wireframe"].thickness = 0.06
@@ -300,11 +318,7 @@ def heightarray(object,offset, N ):
     array2.count = N
 
 def deselect_all(scene):
-    #allobjects = scene.objects
     bpy.context.view_layer.objects.active = None    
-    #for ob in allobjects:
-    #    make_single_user()
-    #    bpy.data.objects[ob.name].select_set(False)
     
     
 def unlinkedcopy(object1):
@@ -312,17 +326,15 @@ def unlinkedcopy(object1):
     object2.data = object1.data.copy() #omit if you want a linked copy where they both point to the same mesh object
     return object2
     
-    
-    
 def select_obj(ob):
     bpy.context.view_layer.objects.active = ob
     bpy.data.objects[ob.name].select_set(True)
+    
 def all_single_users(scene):
     allobjects = scene.objects
     for ob in allobjects:
         select_obj(ob)
         make_single_user()
-
     
 def select_only_obj(object = None,scene = None):
     if object and scene:
@@ -348,9 +360,11 @@ def movecollection(object,new_col):
         select_obj(object)
         obj = bpy.context.object
         old_col = obj.users_collection[0]
-        print(f"object was in collection {obj.users_collection}")
-        bpy.data.collections[new_col.name].objects.link(object)
-        bpy.data.collections[old_col.name].objects.unlink(object)  
+        if old_col != new_col:
+            print(f"object was in collection {obj.users_collection} is now in {new_col}")
+            bpy.data.collections[old_col.name].objects.unlink(object)  
+            bpy.data.collections[new_col.name].objects.link(object)
+            
     except:
         pass        
            
@@ -361,20 +375,21 @@ class ObjectTowerArray(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
     print("new script is run")
 
-      
-
     
-    # delete all empty collections first
-    collection2delete = []
-    for collection in bpy.context.scene.collection.children:
-        nr_objects = len(list(collection.all_objects))
-        if nr_objects == 0:
-            collection2delete.append(collection)
-
-    for collection in collection2delete:
-        bpy.context.scene.collection.children.unlink(collection)
 
     def execute(self, context):
+        remove_orphaned_data()
+        # delete all empty collections first
+        collection2delete = []
+        for collection in bpy.context.scene.collection.children:
+            nr_objects = len(list(collection.all_objects))
+            if nr_objects == 0:
+                collection2delete.append(collection)
+
+        for collection in collection2delete:
+            bpy.context.scene.collection.children.unlink(collection)
+        
+        
         scene = context.scene
         var = scene.my_vars # Get all variables
         
@@ -405,7 +420,8 @@ class ObjectTowerArray(bpy.types.Operator):
             """to move the whole structure around 
             is parented to this wireframe cube"""
             boxcube = cube_base(variables = var, cursor = cursor, collection = TowerCol)            
-        
+            print(f"boxcube = {boxcube.name}")
+            
         if True: # point vectors to where the beams should be placed        
             vec_centertop = Vector((var.boxwidth/2, 0, var.boxheight/2)) + cursor
             vec_corner = Vector((var.boxwidth/2, var.boxwidth/2, var.boxheight/2)) + cursor
@@ -460,13 +476,6 @@ class ObjectTowerArray(bpy.types.Operator):
         all_single_users(scene)
         obj_topbar.location = vec_centertop
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True) 
-        
-        
-        
-          
-        
-
-        
         
                     
          
@@ -523,7 +532,7 @@ class ObjectTowerArray(bpy.types.Operator):
             frontplate.location = EmptyFront.location
             frontplate.name = 'Frontplate'
             bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-            
+            bpy.data.collections[TowerCol.name].objects.link(frontplate)  
             width = (EmptyDiagonal.location-EmptyFront.location)[1]/2*var.platesize
             height = (EmptyDiagonal.location-EmptyFront.location)[2]/2*var.platesize
 
@@ -626,22 +635,42 @@ class ObjectTowerArray(bpy.types.Operator):
                             bpy.ops.object.modifier_apply(apply_as='DATA', modifier=mod.name)
             #PARENT TO CUBE
             if boxcube:
+                movecollection(boxcube,TowerCol)
+
                 for object in TowerCol.objects:
                     if  object.type == 'EMPTY' or object.type == 'MESH' and object != boxcube:
                         select_obj(object)
                         object.parent = boxcube
                         object.matrix_parent_inverse = boxcube.matrix_world.inverted()
-        
+        print(f"scene objects {scene.objects}")
         #restore 3D cursor
         select_obj(EmptyCenter)
         bpy.ops.view3d.snap_cursor_to_active()   
-        if var.DELETE_EMPTIES: #remove all empties
+        if var.DELETE_EMPTIES: #remove all empties   
             remove_empties(collection = TowerCol)
+         
+        if var.JOIN_OBJECTS:
+            bpy.data.collections[TowerCol.name].objects.unlink(boxcube)   
+            """  
+            obs = []
+            for ob in TowerCol.objects:
+                if ob.type == 'MESH':
+                    obs.append(ob)   
+            print() 
+            if obs:
+                ctx = bpy.context.copy()
+                ctx['active_object'] = obs[0]
+                ctx['selected_editable_bases'] = obs
+                bpy.ops.object.join(ctx)
+            """
         #set original object back to active to redo the operations
 
         
+        remove_orphaned_data()
         select_only_obj(object = active_object,scene = scene)
         select_obj(active_object )
+        
+        
         return {'FINISHED'}
                  
 
