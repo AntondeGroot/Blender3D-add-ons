@@ -195,7 +195,8 @@ class PanelBase(bpy.types.Panel):
         layout.prop(mytool, "N_sides_used", text="nr of sides shown")
         row = layout.row()
         row.label(text='Diagonal Beams',icon = "SORTBYEXT")
-        layout.prop(mytool, "diagonalxy", text = 'beamsize'  )
+        layout.prop(mytool, "diagonalxy", text = 'beam size'  )
+        layout.prop(mytool, "diagonalpercent", text = 'beam length'  )
         row = layout.row()
         row.label(text='Side Panels',icon = "FACESEL" )
         
@@ -304,6 +305,8 @@ def deselect_all(scene):
     #for ob in allobjects:
     #    make_single_user()
     #    bpy.data.objects[ob.name].select_set(False)
+    
+    
 def unlinkedcopy(object1):
     object2 = object1.copy()
     object2.data = object1.data.copy() #omit if you want a linked copy where they both point to the same mesh object
@@ -323,6 +326,10 @@ def all_single_users(scene):
     
 def select_only_obj(object = None,scene = None):
     if object and scene:
+        allobjects = scene.objects
+        bpy.context.view_layer.objects.active = None    
+        for ob in allobjects:
+            bpy.data.objects[ob.name].select_set(False)
         deselect_all(scene)
         bpy.data.objects[object.name].select_set(True)
         
@@ -392,10 +399,18 @@ class ObjectTowerArray(bpy.types.Operator):
         all_single_users(scene)
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True) 
         
+        
+        
         if True:
             """to move the whole structure around 
             is parented to this wireframe cube"""
             boxcube = cube_base(variables = var, cursor = cursor, collection = TowerCol)            
+        
+        if True: # point vectors to where the beams should be placed        
+            vec_centertop = Vector((var.boxwidth/2, 0, var.boxheight/2)) + cursor
+            vec_corner = Vector((var.boxwidth/2, var.boxwidth/2, var.boxheight/2)) + cursor
+            vec_side = Vector((var.boxwidth/2, var.boxwidth/2, 0)) + cursor
+        
         if True: #create topbar
             obj_topbar = unlinkedcopy(active_object)
             obj_topbar.name = 'Topbar'
@@ -429,10 +444,7 @@ class ObjectTowerArray(bpy.types.Operator):
         if True: # Determine the center of the scene
             EmptyCenter = create_empty(name = 'EmptyCenter',size = max(var.boxwidth,var.boxheight)*1.5,location =  cursor,colname = TowerCol)
         
-        if True: # point vectors to where the beams should be placed        
-            vec_centertop = Vector((var.boxwidth/2, 0, var.boxheight/2)) + cursor
-            vec_corner = Vector((var.boxwidth/2, var.boxwidth/2, var.boxheight/2)) + cursor
-            vec_side = Vector((var.boxwidth/2, var.boxwidth/2, 0)) + cursor
+        
         
         if True:
             # Create extra Empties
@@ -615,6 +627,9 @@ class ObjectTowerArray(bpy.types.Operator):
         if var.DELETE_EMPTIES: #remove all empties
             remove_empties(collection = TowerCol)
         #set original object back to active to redo the operations
+
+        
+        select_only_obj(object = active_object,scene = scene)
         select_obj(active_object )
         return {'FINISHED'}
                  
