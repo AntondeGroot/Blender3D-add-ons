@@ -485,7 +485,7 @@ class ObjectTowerArray(bpy.types.Operator):
         obj_sidebar = unlinkedcopy(obj_topbar)
         #select_obj(obj_sidebar)
         obj_sidebar.name = 'Sidebar' 
-        assignmaterial(obj_topbar, matcolor1)
+        assignmaterial(obj_topbar, matcolor2)
         assignmaterial(obj_sidebar, matcolor2)
         all_single_users(scene)
         #scene.collection.objects.link(obj_sidebar) 
