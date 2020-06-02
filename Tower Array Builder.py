@@ -49,7 +49,6 @@ def remove_orphaned_data():
             bpy.data.materials.remove(mat)
             
 #=====================================================
-
 def cube_base(variables = None, cursor = None, collection = None):
     var = variables 
     if variables and cursor and collection:
@@ -70,6 +69,7 @@ def cube_base(variables = None, cursor = None, collection = None):
     else:
         print(f"failed to create box cube")
         return None
+    
 #=====================================================
 def add_mirror_modifier(object = None,center = None, x = False,y = False,z = False):
     name = "MX"*x + "MY"*y + "MZ"*z
@@ -159,6 +159,7 @@ class MySettings(PropertyGroup):#https://blender.stackexchange.com/questions/350
     JOIN_OBJECTS: bpy.props.BoolProperty(name="join bool", default=False)
     def get(self):
         return self.boxheight
+    
 class PanelMain(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
     bl_label = "Tower Array"
@@ -531,6 +532,8 @@ class ObjectTowerArray(bpy.types.Operator):
             frontplate = bpy.context.selected_objects[0]  
             frontplate.location = EmptyFront.location
             frontplate.name = 'Frontplate'
+            assignmaterial(frontplate, matcolor1)
+            
             bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
             bpy.data.collections[TowerCol.name].objects.link(frontplate)  
             width = (EmptyDiagonal.location-EmptyFront.location)[1]/2*var.platesize
@@ -650,8 +653,11 @@ class ObjectTowerArray(bpy.types.Operator):
             remove_empties(collection = TowerCol)
          
         if var.JOIN_OBJECTS:
-            bpy.data.collections[TowerCol.name].objects.unlink(boxcube)   
-            """  
+
+            for collection in boxcube.users_collection:
+                print(f"collection - {collection} / {collection.name} ")
+                collection.objects.unlink(boxcube)
+            
             obs = []
             for ob in TowerCol.objects:
                 if ob.type == 'MESH':
@@ -662,7 +668,7 @@ class ObjectTowerArray(bpy.types.Operator):
                 ctx['active_object'] = obs[0]
                 ctx['selected_editable_bases'] = obs
                 bpy.ops.object.join(ctx)
-            """
+            
         #set original object back to active to redo the operations
 
         
