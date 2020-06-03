@@ -157,8 +157,6 @@ class MySettings(PropertyGroup):#https://blender.stackexchange.com/questions/350
     APPLY_MODS  : bpy.props.BoolProperty(name="Spire bool", default=True)
     DELETE_EMPTIES : bpy.props.BoolProperty(name="Spire bool", default=True)
     JOIN_OBJECTS: bpy.props.BoolProperty(name="join bool", default=False)
-    def get(self):
-        return self.boxheight
     
 class PanelMain(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
@@ -397,8 +395,14 @@ class ObjectTowerArray(bpy.types.Operator):
         cursor = scene.cursor.location
         cursor_org = cursor
         active_object = context.active_object
+        defaultcube = None
         if not active_object: 
-            return {'CANCELLED'}
+            bpy.ops.mesh.primitive_cube_add()
+            # newly created cube will be automatically selected    
+            defaultcube = bpy.context.selected_objects[0]  
+            defaultcube.location = cursor
+            active_object = defaultcube
+
         
         bpy.ops.object.origin_set(type = 'ORIGIN_GEOMETRY')
         
@@ -670,11 +674,14 @@ class ObjectTowerArray(bpy.types.Operator):
                 bpy.ops.object.join(ctx)
             
         #set original object back to active to redo the operations
-
-        
+        if defaultcube:
+            bpy.data.objects.remove(defaultcube)
         remove_orphaned_data()
         select_only_obj(object = active_object,scene = scene)
+        
+
         select_obj(active_object )
+    
         
         
         return {'FINISHED'}
